@@ -128,55 +128,6 @@ driver_get_normalized_m_opts (int argc, const char **argv)
     NULL
   );
 
- /* Don't throw these ABI/multilib-related error if not linking.  */
-  if (!no_link)
-    {
-      char* abi_str_current = concat
-	(loongarch_abi_int_strings[loongarch_abi_int_driver], "/",
-	 loongarch_abi_float_strings[loongarch_abi_float_driver], NULL);
-
-#ifdef __DISABLE_MULTILIB
-      if ((DEFAULT_ABI_INT != M_OPTION_NOT_SEEN
-	   && loongarch_abi_int_driver != DEFAULT_ABI_INT)
-	  || (DEFAULT_ABI_FLOAT != M_OPTION_NOT_SEEN
-	      && loongarch_abi_float_driver != DEFAULT_ABI_FLOAT))
-	{
-	  char* abi_str_default = concat
-	    (loongarch_abi_int_strings[DEFAULT_ABI_INT], "/",
-	     loongarch_abi_float_strings[DEFAULT_ABI_FLOAT], NULL);
-
-	  error ("ABI change detected (%qs -> %qs) while multilib is disabled",
-		 abi_str_default, abi_str_current);
-	}
-#else
-      char* abi_str_current_s = concat ("@", abi_str_current, "@", NULL);
-
-      if (strstr (TM_MULTILIB_LIST, abi_str_current_s) == NULL)
-	{
-	  char* multilib_list
-	    = XALLOCAVEC (char, sizeof(TM_MULTILIB_LIST) - 2);
-
-	  /* Substituing all "@@"s in TM_MULTILIB_LIST with space,
-	     making it decent for printing.  */
-	  int j = 0;
-	  for (unsigned int i = 1; i < sizeof(TM_MULTILIB_LIST) - 2; i++)
-	    {
-	      if (TM_MULTILIB_LIST[i] == '@')
-		{
-		  multilib_list[j++] = ' ';
-		  i++;
-		}
-	      else
-		multilib_list[j++] = TM_MULTILIB_LIST[i];
-	    }
-	  multilib_list[j] = '\0';
-
-	  error ("ABI (%qs) is not in the configured ABI list (%qs)",
-		 abi_str_current, multilib_list);
-	}
-#endif
-    }
-
   /* Output normalized option strings. */
   obstack_blank (&opts_obstack, 0);
 
