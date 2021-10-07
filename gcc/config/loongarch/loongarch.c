@@ -1089,7 +1089,7 @@ loongarch_emit_probe_stack_range (HOST_WIDE_INT first, HOST_WIDE_INT size)
 {
   /* See if we have a constant small number of probes to generate.  If so,
      that's the easy case.  */
-  if (first + size <= 2048)
+  if (size <= 8 * PROBE_INTERVAL)
     {
       HOST_WIDE_INT i;
 
