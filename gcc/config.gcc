@@ -2499,57 +2499,66 @@ riscv*-*-freebsd*)
 	gcc_cv_initfini_array=yes
 	;;
 
-loongarch64-*-linux*)
-	# Check and set --with- options according to the triplet.
-	case ${with_abi} in
-	lp64) ;; # OK
-	"")
-		# Setting default values for with_abi / with_float
-		# so that the compiler can still find the library dirs
-		# of the correct ABI type according to its target triplet
-		# even when multilib (search path suffix) is turned off
-		# (see config/loongarch/linux.h).
-		if test x${enable_multilib} != xyes; then
-			with_abi=lp64
-		fi
+loongarch*-linux*)
+	# Inferring ${with_} options from the triplet.
+	case ${target} in
+	loongarch64nf-*)
+		with_arch_triplet=loongarch64
+		with_abi_triplet=lp64
+		with_float_triplet=soft
 		;;
-	#)
-	#	echo "Incompatible options:" \
-	#	"--with-abi=${with_abi} and --target=${target}." 1>&2
-	#	exit 1
-	#	;;
-	esac
-
-	case ${with_float} in
-	none | single | double) ;; # OK
-	"")
-		# See the comment above.
-		if test x${enable_multilib} != xyes; then
-			with_float=double
-		fi
+	loongarch64sf-*)
+		with_arch_triplet=loongarch64
+		with_abi_triplet=lp64
+		with_float_triplet=single
 		;;
-	hard)
-		# Ambiguous, default to double.
-		with_float=double
+	loongarch64-*)
+		with_arch_triplet=loongarch64
+		with_abi_triplet=lp64
+		with_float_triplet="*"
 		;;
-	#)
-	#	echo "Incompatible options:" \
-	#	"--with-float=${with_float} and --target=${target}." 1>&2
-	#	exit 1
-	#	;;
+	*)
+		echo "Unsupported target ${target}." 1>&2
+		exit 1
 	esac
 
 	# Setting default value for with_arch.
 	if test x${with_arch} == x; then
-		with_arch=loongarch64
+		with_arch=${with_arch_triplet}
 	fi
 
-	# Setting default --with-multilib-list if multilib is enabled.
-	if test x$enable_multilib == xyes; then
-		if test x"${with_multilib_list}" = xdefault; then
-			with_multilib_list="lp64/double"
+	# Check and set --with- options according to the triplet.
+	case ${with_abi} in
+	"")
+		with_abi=${with_abi_triplet}
+		;;
+
+	${with_abi_triplet}) ;; # OK
+	*)
+		echo "Incompatible options:" \
+		"--with-abi=${with_abi} and --target=${target}." 1>&2
+		exit 1
+		;;
+	esac
+
+	case ${with_float} in
+	"")
+		if test x${with_float_triplet} == x*; then
+			case ${target} in
+			loongarch64-*) with_float_triplet=double ;;
+			esac
 		fi
-	fi
+
+		with_float=${with_float_triplet}
+		;;
+
+	${with_float_triplet}) ;; # OK
+	*)
+		echo "Incompatible options:" \
+		"--with-float=${with_float} and --target=${target}." 1>&2
+		exit 1
+		;;
+	esac
 
 	tm_file="dbxelf.h elfos.h gnu-user.h linux.h linux-android.h glibc-stdint.h ${tm_file}"
 	tm_file="${tm_file} loongarch/gnu-user.h loongarch/linux.h"
@@ -4983,8 +4992,8 @@ case "${target}" in
 		esac
 
 		case ${with_float} in
-		"" | none | single | double)  ;;   # OK, append here.
-		soft)  with_float=none   ;;
+		"" | soft | single | double)  ;;   # OK, append here.
+		none)  with_float=soft   ;;
 		*)
 			echo "Unknown fpu type used in --with-fpu=$with_fpu" 1>&2
 			exit 1
@@ -5002,7 +5011,7 @@ case "${target}" in
 		# Handle --with-multilib-list.
 		if test x$enable_multilib == xyes; then
 			# Handle --with-multilib-list=default.
-			if test x$"{with_multilib_list}" == xdefault; then
+			if test x${with_multilib_list} == xdefault; then
 				if test x${with_abi} != x && test x${with_float} != x; then
 					with_multilib_list="${with_abi}/${with_float}"
 				else

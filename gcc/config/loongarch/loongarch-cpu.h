@@ -37,9 +37,7 @@ struct loongarch_isa_ext {
 
 struct loongarch_cpu_config {
     int isa_int;
-    int abi_int;
     int isa_float;
-    int abi_float;
     struct loongarch_isa_ext ext;
 };
 

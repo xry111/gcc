@@ -44,10 +44,10 @@ ifeq ($(filter __DISABLE_MULTILIB,$(tm_defines)),)
 
     MULTILIB_OSDIRNAMES += \
       mabi.lp64/mfloat-abi.soft=../lib64/soft$\
-      $(call if_multiarch,:loongarch64-linux-gnu/soft)
+      $(call if_multiarch,:loongarch64nf-linux-gnu)
 
     MULTILIB_OSDIRNAMES += \
       mabi.lp64/mfloat-abi.single=../lib64/single$\
-      $(call if_multiarch,:loongarch64-linux-gnu/single)
+      $(call if_multiarch,:loongarch64sf-linux-gnu)
 
 endif

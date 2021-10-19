@@ -37,12 +37,9 @@ const char* loongarch_cpu_strings[] = {
 
 #define N M_OPTION_NOT_SEEN
 struct loongarch_cpu_config loongarch_cpu_default_config[] = {
-  /* CPU_NATIVE */      { N, N, N, N,
-			  { N } },
-  /* CPU_LOONGARCH64 */ { ISA_LA64, ABI_LP64, ISA_DOUBLE_FLOAT, ABI_DOUBLE_FLOAT,
-			  { 1 } },
-  /* CPU_GS464V */      { ISA_LA64, ABI_LP64, ISA_DOUBLE_FLOAT, ABI_DOUBLE_FLOAT,
-			  { 1 } },
+  /* CPU_NATIVE */      { N, N, { N } },
+  /* CPU_LOONGARCH64 */ { ISA_LA64, ISA_DOUBLE_FLOAT, { 1 } },
+  /* CPU_GS464V */      { ISA_LA64, ISA_DOUBLE_FLOAT, { 1 } },
 };
 #undef N
 
@@ -109,9 +106,7 @@ uint32_t get_native_prid (void)
 
 int fill_native_cpu_config (void)
 {
-  int int_isa = -1, int_abi = -1;
-  int float_isa = -1, float_abi = -1;
-  int cpu_type = -1;
+  int int_isa = -1, float_isa = -1, cpu_type = -1;
 
   /* Fill: loongarch_cpu_default_config[CPU_NATIVE].isa_int
      With: Integer ISA (ARCH)
@@ -121,7 +116,6 @@ int fill_native_cpu_config (void)
     {
       case 0x02:
 	int_isa = ISA_LA64;
-	int_abi = ABI_LP64;
 	break;
     }
 
@@ -133,17 +127,14 @@ int fill_native_cpu_config (void)
     {
       case 0x07:
 	float_isa = ISA_DOUBLE_FLOAT;
-	float_abi = ABI_DOUBLE_FLOAT;
 	break;
 
       case 0x03:
 	float_isa = ISA_SINGLE_FLOAT;
-	float_abi = ABI_SINGLE_FLOAT;
 	break;
 
       case 0x00:
 	float_isa = ISA_SOFT_FLOAT;
-	float_abi = ABI_SOFT_FLOAT;
 	break;
     }
 
@@ -170,21 +161,13 @@ int fill_native_cpu_config (void)
     = loongarch_cpu_default_config [cpu_type];
 
   #define NATIVE_INT_ISA (loongarch_cpu_default_config[CPU_NATIVE].isa_int)
-  #define NATIVE_INT_ABI (loongarch_cpu_default_config[CPU_NATIVE].abi_int)
   #define NATIVE_FLOAT_ISA (loongarch_cpu_default_config[CPU_NATIVE].isa_float)
-  #define NATIVE_FLOAT_ABI (loongarch_cpu_default_config[CPU_NATIVE].abi_float)
 
   if (int_isa != -1 && NATIVE_INT_ISA != int_isa)
-    {
       NATIVE_INT_ISA = int_isa;
-      NATIVE_INT_ABI = int_abi;
-    }
 
   if (float_isa != -1 && NATIVE_FLOAT_ISA != float_isa)
-    {
       NATIVE_FLOAT_ISA = float_isa;
-      NATIVE_FLOAT_ABI = float_abi;
-    }
 
   loongarch_cpu_issue_rate [CPU_NATIVE]
     = loongarch_cpu_issue_rate [cpu_type];

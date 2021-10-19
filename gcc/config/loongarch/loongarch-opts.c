@@ -168,7 +168,7 @@ loongarch_handle_m_option_combinations (
 	    gcc_unreachable();
 	  }
 
-      /* Try inferring int abi from "-march" option.  */
+      /* Try inferring int ISA from "-march" option.  */
       else if (!cpu_arch_was_absent)
 	*isa_int
 	  = loongarch_cpu_default_config[*cpu_arch].isa_int;
@@ -186,24 +186,10 @@ loongarch_handle_m_option_combinations (
   /* 4. Compute integer ABI */
   if (LARCH_OPT_ABSENT(*abi_int))
     {
-      /* Try inferring int abi from -march first
-       * (or loongarch_cpu_default_config[].abi_int
-       * will not be effective under any circumstance).  */
-
-      if (int_isa_was_absent)
-	if (!cpu_arch_was_absent)
-	  *abi_int
-	    = loongarch_cpu_default_config[*cpu_arch].abi_int;
-
-	else if (DEFAULT_ABI_INT != M_OPTION_NOT_SEEN)
+      if (int_isa_was_absent && cpu_arch_was_absent
+	  && DEFAULT_ABI_INT != M_OPTION_NOT_SEEN)
 	  /* Fall back to configure-time default, if there is one.  */
 	  *abi_int = DEFAULT_ABI_INT;
-
-	else
-	  /* If there's no configure-time default for integer ABI,
-	   * infer it from the configure-time default of "-march".  */
-	  *abi_int
-	    = loongarch_cpu_default_config[*cpu_arch].abi_int;
 
       else
 	/* Try inferring int ABI from int ISA.  */
@@ -259,7 +245,7 @@ loongarch_handle_m_option_combinations (
 	    gcc_unreachable();
 	  }
 
-      /* Try inferring fp abi from "-march" option.  */
+      /* Try inferring fp ISA from "-march" option.  */
       else if (!cpu_arch_was_absent)
 	*isa_float = loongarch_cpu_default_config[*cpu_arch].isa_float;
 
@@ -276,25 +262,10 @@ loongarch_handle_m_option_combinations (
   /* 7. Compute floating-point ABI */
   if (LARCH_OPT_ABSENT(*abi_float))
     {
-      /* Try inferring fp abi from cpu_arch first
-	 (or loongarch_cpu_default_config[].abi_float
-	 will not be effective under any circumstance).
-	 */
-      if (float_isa_was_absent)
-
-	if (!cpu_arch_was_absent)
-	  *abi_float
-	    = loongarch_cpu_default_config[*cpu_arch].abi_float;
-
-	else if (DEFAULT_ABI_FLOAT != M_OPTION_NOT_SEEN)
+      if (float_isa_was_absent && cpu_arch_was_absent
+	  && DEFAULT_ABI_FLOAT != M_OPTION_NOT_SEEN)
 	  /* Fall back to configure-time default, if there is one.  */
 	  *abi_float = DEFAULT_ABI_FLOAT;
-
-	else
-	  /* If there's no configure-time default for floating-point ABI,
-	   * infer it from the configure-time default of "-march".  */
-	  *abi_float
-	    = loongarch_cpu_default_config[*cpu_arch].abi_float;
 
       else
 	/* Try inferring fp abi from fp isa.  */
