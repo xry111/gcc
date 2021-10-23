@@ -64,13 +64,12 @@ loongarch_cpu_cpp_builtins (cpp_reader *pfile)
   builtin_assert ("cpu=loongarch");
   builtin_define ("__loongarch__");
 
-  if (TARGET_FLOAT64)
-    builtin_define ("__loongarch_fpr=64");
-  else
-    builtin_define ("__loongarch_fpr=32");
-
   LARCH_CPP_SET_PROCESSOR ("_LOONGARCH_ARCH", loongarch_cpu_arch);
   LARCH_CPP_SET_PROCESSOR ("_LOONGARCH_TUNE", loongarch_cpu_tune);
+
+  /* Integer ISA/ABI */
+  if (TARGET_64BIT)
+    builtin_define ("__loongarch_gpr=64");
 
   switch (loongarch_abi_int)
     {
@@ -78,27 +77,40 @@ loongarch_cpu_cpp_builtins (cpp_reader *pfile)
       builtin_define ("_ABILP64=3");
       builtin_define ("_LOONGARCH_SIM=_ABILP64");
       builtin_define ("__loongarch64");
+      builtin_define ("__loongarch_lp64");
       break;
     }
 
+  /* Floating-Point ISA/ABI */
+  if (TARGET_DOUBLE_FLOAT)
+    builtin_define ("__loongarch_fpr=64");
+  else if (TARGET_SINGLE_FLOAT)
+    builtin_define ("__loongarch_fpr=32");
+  else
+    builtin_define ("__loongarch_fpr=0");
+
+  /* These defines reflect the ABI in use, not whether the
+     FPU is directly accessible.  */
+  if (TARGET_DOUBLE_FLOAT_ABI)
+    builtin_define ("__loongarch_double_float");
+  else if (TARGET_SINGLE_FLOAT_ABI)
+    builtin_define ("__loongarch_single_float");
+
+  if (TARGET_DOUBLE_FLOAT_ABI || TARGET_SINGLE_FLOAT_ABI)
+    builtin_define ("__loongarch_hard_float");
+  else
+    builtin_define ("__loongarch_soft_float");
+
+  /* ISA Extensions / Features */
+  if (TARGET_FIX_LOONGSON3_LLSC)
+    builtin_define ("__fix_loongson3_llsc");
+
+  /* Native Data Sizes */
   builtin_define_with_int_value ("_LOONGARCH_SZINT", INT_TYPE_SIZE);
   builtin_define_with_int_value ("_LOONGARCH_SZLONG", LONG_TYPE_SIZE);
   builtin_define_with_int_value ("_LOONGARCH_SZPTR", POINTER_SIZE);
   builtin_define_with_int_value ("_LOONGARCH_FPSET", 32 / MAX_FPRS_PER_FMT);
   builtin_define_with_int_value ("_LOONGARCH_SPFPSET", 32);
-
-  /* These defines reflect the ABI in use, not whether the
-     FPU is directly accessible.  */
-  if (TARGET_HARD_FLOAT_ABI)
-    builtin_define ("__loongarch_hard_float");
-  else
-    builtin_define ("__loongarch_soft_float");
-
-  if (TARGET_SINGLE_FLOAT)
-    builtin_define ("__loongarch_single_float");
-
-  if (TARGET_FIX_LOONGSON3_LLSC)
-    builtin_define ("__fix_loongson3_llsc");
 
   /* Macros dependent on the C dialect.  */
   if (preprocessing_asm_p ())

@@ -418,8 +418,7 @@
 (define_mode_iterator JOIN_MODE [HI
 				 SI
 				 (SF "TARGET_HARD_FLOAT")
-				 (DF "TARGET_HARD_FLOAT
-				      && TARGET_DOUBLE_FLOAT")])
+				 (DF "TARGET_DOUBLE_FLOAT")])
 
 ;; This mode iterator allows :P to be used for patterns that operate on
 ;; pointer-sized quantities.  Exactly one of the two alternatives will match.
@@ -442,13 +441,13 @@
 
 ;; Iterator for hardware-supported floating-point modes.
 (define_mode_iterator ANYF [(SF "TARGET_HARD_FLOAT")
-			    (DF "TARGET_HARD_FLOAT && TARGET_DOUBLE_FLOAT")])
+			    (DF "TARGET_DOUBLE_FLOAT")])
 
 ;; A floating-point mode for which moves involving FPRs may need to be split.
 (define_mode_iterator SPLITF
   [(DF "!TARGET_64BIT && TARGET_DOUBLE_FLOAT")
    (DI "!TARGET_64BIT && TARGET_DOUBLE_FLOAT")
-   (TF "TARGET_64BIT && TARGET_FLOAT64")])
+   (TF "TARGET_64BIT && TARGET_DOUBLE_FLOAT")])
 
 ;; In GPR templates, a string like "mul.<d>" will expand to "mul" in the
 ;; 32-bit "mul.w" and "mul.d" in the 64-bit version.
@@ -1258,7 +1257,7 @@
 (define_insn "truncdfsf2"
   [(set (match_operand:SF 0 "register_operand" "=f")
 	(float_truncate:SF (match_operand:DF 1 "register_operand" "f")))]
-  "TARGET_HARD_FLOAT && TARGET_DOUBLE_FLOAT"
+  "TARGET_DOUBLE_FLOAT"
   "fcvt.s.d\t%0,%1"
   [(set_attr "type"	"fcvt")
    (set_attr "cnv_mode"	"D2S")
@@ -1520,7 +1519,7 @@
 (define_insn "extendsfdf2"
   [(set (match_operand:DF 0 "register_operand" "=f")
 	(float_extend:DF (match_operand:SF 1 "register_operand" "f")))]
-  "TARGET_HARD_FLOAT && TARGET_DOUBLE_FLOAT"
+  "TARGET_DOUBLE_FLOAT"
   "fcvt.d.s\t%0,%1"
   [(set_attr "type"	"fcvt")
    (set_attr "cnv_mode"	"S2D")
@@ -1538,7 +1537,7 @@
 (define_insn "fix_truncdfsi2"
   [(set (match_operand:SI 0 "register_operand" "=f")
 	(fix:SI (match_operand:DF 1 "register_operand" "f")))]
-  "TARGET_HARD_FLOAT && TARGET_DOUBLE_FLOAT"
+  "TARGET_DOUBLE_FLOAT"
   "ftintrz.w.d %0,%1"
   [(set_attr "type"	"fcvt")
    (set_attr "mode"	"DF")
@@ -1557,7 +1556,7 @@
 (define_insn "fix_truncdfdi2"
   [(set (match_operand:DI 0 "register_operand" "=f")
 	(fix:DI (match_operand:DF 1 "register_operand" "f")))]
-  "TARGET_HARD_FLOAT && TARGET_FLOAT64 && TARGET_DOUBLE_FLOAT"
+  "TARGET_DOUBLE_FLOAT"
   "ftintrz.l.d %0,%1"
   [(set_attr "type"	"fcvt")
    (set_attr "mode"	"DF")
@@ -1567,7 +1566,7 @@
 (define_insn "fix_truncsfdi2"
   [(set (match_operand:DI 0 "register_operand" "=f")
 	(fix:DI (match_operand:SF 1 "register_operand" "f")))]
-  "TARGET_HARD_FLOAT && TARGET_FLOAT64 && TARGET_DOUBLE_FLOAT"
+  "TARGET_DOUBLE_FLOAT"
   "ftintrz.l.s %0,%1"
   [(set_attr "type"	"fcvt")
    (set_attr "mode"	"SF")
@@ -1578,7 +1577,7 @@
 (define_insn "floatsidf2"
   [(set (match_operand:DF 0 "register_operand" "=f")
 	(float:DF (match_operand:SI 1 "register_operand" "f")))]
-  "TARGET_HARD_FLOAT && TARGET_DOUBLE_FLOAT"
+  "TARGET_DOUBLE_FLOAT"
   "ffint.d.w\t%0,%1"
   [(set_attr "type"	"fcvt")
    (set_attr "mode"	"DF")
@@ -1588,7 +1587,7 @@
 (define_insn "floatdidf2"
   [(set (match_operand:DF 0 "register_operand" "=f")
 	(float:DF (match_operand:DI 1 "register_operand" "f")))]
-  "TARGET_HARD_FLOAT && TARGET_FLOAT64 && TARGET_DOUBLE_FLOAT"
+  "TARGET_DOUBLE_FLOAT"
   "ffint.d.l\t%0,%1"
   [(set_attr "type"	"fcvt")
    (set_attr "mode"	"DF")
@@ -1608,7 +1607,7 @@
 (define_insn "floatdisf2"
   [(set (match_operand:SF 0 "register_operand" "=f")
 	(float:SF (match_operand:DI 1 "register_operand" "f")))]
-  "TARGET_HARD_FLOAT && TARGET_FLOAT64 && TARGET_DOUBLE_FLOAT"
+  "TARGET_DOUBLE_FLOAT"
   "ffint.s.l\t%0,%1"
   [(set_attr "type"	"fcvt")
    (set_attr "mode"	"SF")
@@ -1619,7 +1618,7 @@
 (define_expand "fixuns_truncdfsi2"
   [(set (match_operand:SI 0 "register_operand")
 	(unsigned_fix:SI (match_operand:DF 1 "register_operand")))]
-  "TARGET_HARD_FLOAT && TARGET_DOUBLE_FLOAT"
+  "TARGET_DOUBLE_FLOAT"
 {
   rtx reg1 = gen_reg_rtx (DFmode);
   rtx reg2 = gen_reg_rtx (DFmode);
@@ -1665,7 +1664,7 @@
 (define_expand "fixuns_truncdfdi2"
   [(set (match_operand:DI 0 "register_operand")
 	(unsigned_fix:DI (match_operand:DF 1 "register_operand")))]
-  "TARGET_HARD_FLOAT && TARGET_64BIT && TARGET_DOUBLE_FLOAT"
+  "TARGET_DOUBLE_FLOAT"
 {
   rtx reg1 = gen_reg_rtx (DFmode);
   rtx reg2 = gen_reg_rtx (DFmode);
@@ -1749,7 +1748,7 @@
 (define_expand "fixuns_truncsfdi2"
   [(set (match_operand:DI 0 "register_operand")
 	(unsigned_fix:DI (match_operand:SF 1 "register_operand")))]
-  "TARGET_HARD_FLOAT && TARGET_64BIT && TARGET_DOUBLE_FLOAT"
+  "TARGET_DOUBLE_FLOAT"
 {
   rtx reg1 = gen_reg_rtx (SFmode);
   rtx reg2 = gen_reg_rtx (SFmode);
@@ -2021,7 +2020,7 @@
 (define_insn "*movdf_hardfloat"
   [(set (match_operand:DF 0 "nonimmediate_operand" "=f,f,f,m,m,*f,*r,*r,*r,*m")
 	(match_operand:DF 1 "move_operand" "f,G,m,f,G,*r,*f,*r*G,*m,*r"))]
-  "TARGET_HARD_FLOAT && TARGET_DOUBLE_FLOAT
+  "TARGET_DOUBLE_FLOAT
    && (register_operand (operands[0], DFmode)
        || reg_or_0_operand (operands[1], DFmode))"
   { return loongarch_output_move (operands[0], operands[1]); }
@@ -2410,7 +2409,7 @@
 	(unspec:SPLITF [(match_operand:<HALFMODE> 1 "reg_or_0_operand" "rJ")
 			(match_operand:SPLITF 2 "register_operand" "0")]
 			UNSPEC_MOVGR2FRH))]
-  "TARGET_HARD_FLOAT && TARGET_FLOAT64"
+  "TARGET_DOUBLE_FLOAT"
   "movgr2frh.w\t%z1,%0"
   [(set_attr "move_type" "mgtf")
    (set_attr "mode" "<HALFMODE>")])
@@ -2420,7 +2419,7 @@
   [(set (match_operand:<HALFMODE> 0 "register_operand" "=r")
 	(unspec:<HALFMODE> [(match_operand:SPLITF 1 "register_operand" "f")]
 			    UNSPEC_MOVFRH2GR))]
-  "TARGET_HARD_FLOAT && TARGET_FLOAT64"
+  "TARGET_DOUBLE_FLOAT"
   "movfrh2gr.s\t%0,%1"
   [(set_attr "move_type" "mftg")
    (set_attr "mode" "<HALFMODE>")])

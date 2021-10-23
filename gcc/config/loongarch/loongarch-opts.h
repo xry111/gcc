@@ -116,14 +116,15 @@ loongarch_handle_m_option_combinations (
 
 
 /* Legacy conditional expression macros (TODO: cleanup) */
-#define TARGET_HARD_FLOAT      (loongarch_isa_float != ISA_SOFT_FLOAT)
-#define TARGET_HARD_FLOAT_ABI  (loongarch_abi_float != ABI_SOFT_FLOAT)
-#define TARGET_SOFT_FLOAT      (loongarch_isa_float == ISA_SOFT_FLOAT)
-#define TARGET_SOFT_FLOAT_ABI  (loongarch_abi_float == ABI_SOFT_FLOAT)
-#define TARGET_SINGLE_FLOAT    (loongarch_abi_float == ABI_SINGLE_FLOAT)
-#define TARGET_DOUBLE_FLOAT    (loongarch_abi_float == ABI_DOUBLE_FLOAT)
-#define TARGET_FLOAT64         \
-  (loongarch_isa_float == ISA_DOUBLE_FLOAT || loongarch_isa_float == ISA_SOFT_FLOAT)
+#define TARGET_HARD_FLOAT        (loongarch_isa_float != ISA_SOFT_FLOAT)
+#define TARGET_HARD_FLOAT_ABI    (loongarch_abi_float != ABI_SOFT_FLOAT)
+#define TARGET_SOFT_FLOAT        (loongarch_isa_float == ISA_SOFT_FLOAT)
+#define TARGET_SOFT_FLOAT_ABI    (loongarch_abi_float == ABI_SOFT_FLOAT)
+#define TARGET_SINGLE_FLOAT      (loongarch_isa_float == ISA_SINGLE_FLOAT)
+#define TARGET_SINGLE_FLOAT_ABI  (loongarch_abi_float == ABI_SINGLE_FLOAT)
+#define TARGET_DOUBLE_FLOAT      (loongarch_isa_float == ISA_DOUBLE_FLOAT)
+#define TARGET_DOUBLE_FLOAT_ABI  (loongarch_abi_float == ABI_DOUBLE_FLOAT)
+
 #define TARGET_ABI_LP64        (loongarch_abi_int == ABI_LP64)
 #define TARGET_64BIT           (loongarch_isa_int == ISA_LA64)
 

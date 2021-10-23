@@ -209,11 +209,11 @@ along with GCC; see the file COPYING3.  If not see
 #endif
 
 /* For LARCH, width of a floating point register.  */
-#define UNITS_PER_FPREG (TARGET_FLOAT64 ? 8 : 4)
+#define UNITS_PER_FPREG (TARGET_DOUBLE_FLOAT ? 8 : 4)
 
 /* The number of consecutive floating-point registers needed to store the
    largest format supported by the FPU.  */
-#define MAX_FPRS_PER_FMT (TARGET_FLOAT64 || TARGET_SINGLE_FLOAT ? 1 : 2)
+#define MAX_FPRS_PER_FMT 1
 
 /* The number of consecutive floating-point registers needed to store the
    smallest format supported by the FPU.  */
@@ -222,12 +222,12 @@ along with GCC; see the file COPYING3.  If not see
 /* The largest size of value that can be held in floating-point
    registers and moved with a single instruction.  */
 #define UNITS_PER_HWFPVALUE \
-  (TARGET_SOFT_FLOAT_ABI ? 0 : MAX_FPRS_PER_FMT * UNITS_PER_FPREG)
+  (TARGET_SOFT_FLOAT ? 0 : MAX_FPRS_PER_FMT * UNITS_PER_FPREG)
 
 /* The largest size of value that can be held in floating-point
    registers.  */
 #define UNITS_PER_FPVALUE \
-  (TARGET_SOFT_FLOAT_ABI ? 0 \
+  (TARGET_SOFT_FLOAT ? 0 \
    : TARGET_SINGLE_FLOAT ? UNITS_PER_FPREG \
 			 : LONG_DOUBLE_TYPE_SIZE / BITS_PER_UNIT)
 
@@ -1320,6 +1320,6 @@ struct GTY (()) machine_function
 
 /* The largest type that can be passed in floating-point registers.  */
 /* TODO: according to mabi.  */
-#define UNITS_PER_FP_ARG (TARGET_HARD_FLOAT ? (TARGET_64BIT ? 8 : 4) : 0)
+#define UNITS_PER_FP_ARG (TARGET_HARD_FLOAT ? (TARGET_DOUBLE_FLOAT ? 8 : 4) : 0)
 
 #define FUNCTION_VALUE_REGNO_P(N) ((N) == GP_RETURN || (N) == FP_RETURN)
