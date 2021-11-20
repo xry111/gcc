@@ -129,22 +129,17 @@
    (clobber (match_scratch:GPR 6 "=&r"))]
   ""
 {
-  static char buff[256] = {0};
-
-  buff[0] = '\0';
-  sprintf (buff + strlen (buff), "%%G5\\n\\t");
-  sprintf (buff + strlen (buff), "1:\\n\\t");
-  sprintf (buff + strlen (buff), "ll.<amo>\\t%%0,%%1\\n\\t");
-  sprintf (buff + strlen (buff), "bne\\t%%0,%%z2,2f\\n\\t");
-  sprintf (buff + strlen (buff), "or%%i3\\t%%6,$zero,%%3\\n\\t");
-  sprintf (buff + strlen (buff), "sc.<amo>\\t%%6,%%1\\n\\t");
-  sprintf (buff + strlen (buff), "beq\\t$zero,%%6,1b\\n\\t");
-  sprintf (buff + strlen (buff), "b\\t3f\\n\\t");
-  sprintf (buff + strlen (buff), "2:\\n\\t");
-  sprintf (buff + strlen (buff), "dbar\\t0x700\\n\\t");
-  sprintf (buff + strlen (buff), "3:\\n\\t");
-
-  return buff;
+  return "%G5\\n\\t"
+         "1:\\n\\t"
+         "ll.<amo>\\t%0,%1\\n\\t"
+         "bne\\t%0,%z2,2f\\n\\t"
+         "or%i3\\t%6,$zero,%3\\n\\t"
+         "sc.<amo>\\t%6,%1\\n\\t"
+         "beq\\t$zero,%6,1b\\n\\t"
+         "b\\t3f\\n\\t"
+         "2:\\n\\t"
+         "dbar\\t0x700\\n\\t"
+         "3:\\n\\t";
 }
   [(set (attr "length") (const_int 32))])
 
@@ -239,24 +234,19 @@
    (clobber (match_scratch:GPR 7 "=&r"))]
   ""
 {
-  static char buff[256] = {0};
-
-  buff[0] = '\0';
-  sprintf (buff + strlen (buff), "%%G6\\n\\t");
-  sprintf (buff + strlen (buff), "1:\\n\\t");
-  sprintf (buff + strlen (buff), "ll.<amo>\\t%%0,%%1\\n\\t");
-  sprintf (buff + strlen (buff), "and\\t%%7,%%0,%%2\\n\\t");
-  sprintf (buff + strlen (buff), "bne\\t%%7,%%z4,2f\\n\\t");
-  sprintf (buff + strlen (buff), "and\\t%%7,%%0,%%z3\\n\\t");
-  sprintf (buff + strlen (buff), "or%%i5\\t%%7,%%7,%%5\\n\\t");
-  sprintf (buff + strlen (buff), "sc.<amo>\\t%%7,%%1\\n\\t");
-  sprintf (buff + strlen (buff), "beq\\t$zero,%%7,1b\\n\\t");
-  sprintf (buff + strlen (buff), "b\\t3f\\n\\t");
-  sprintf (buff + strlen (buff), "2:\\n\\t");
-  sprintf (buff + strlen (buff), "dbar\\t0x700\\n\\t");
-  sprintf (buff + strlen (buff), "3:\\n\\t");
-
-  return buff;
+  return "%G6\\n\\t"
+         "1:\\n\\t"
+         "ll.<amo>\\t%0,%1\\n\\t"
+         "and\\t%7,%0,%2\\n\\t"
+         "bne\\t%7,%z4,2f\\n\\t"
+         "and\\t%7,%0,%z3\\n\\t"
+         "or%i5\\t%7,%7,%5\\n\\t"
+         "sc.<amo>\\t%7,%1\\n\\t"
+         "beq\\t$zero,%7,1b\\n\\t"
+         "b\\t3f\\n\\t"
+         "2:\\n\\t"
+         "dbar\\t0x700\\n\\t"
+         "3:\\n\\t";
 }
   [(set (attr "length") (const_int 40))])
 
@@ -313,20 +303,15 @@
    (clobber (match_scratch:GPR 8 "=&r"))]
   ""
 {
-  static char buff[256] = {0};
-
-  buff[0] = '\0';
-  sprintf (buff + strlen (buff), "%%G6\\n\\t");
-  sprintf (buff + strlen (buff), "1:\\n\\t");
-  sprintf (buff + strlen (buff), "ll.<amo>\\t%%0,%%1\\n\\t");
-  sprintf (buff + strlen (buff), "and\\t%%7,%%0,%%3\\n\\t");
-  sprintf (buff + strlen (buff), "add.w\\t%%8,%%0,%%z5\\n\\t");
-  sprintf (buff + strlen (buff), "and\\t%%8,%%8,%%z2\\n\\t");
-  sprintf (buff + strlen (buff), "or%%i8\\t%%7,%%7,%%8\\n\\t");
-  sprintf (buff + strlen (buff), "sc.<amo>\\t%%7,%%1\\n\\t");
-  sprintf (buff + strlen (buff), "beq\\t$zero,%%7,1b");
-
-  return buff;
+  return "%G6\\n\\t"
+         "1:\\n\\t"
+         "ll.<amo>\\t%0,%1\\n\\t"
+         "and\\t%7,%0,%3\\n\\t"
+         "add.w\\t%8,%0,%z5\\n\\t"
+         "and\\t%8,%8,%z2\\n\\t"
+         "or%i8\\t%7,%7,%8\\n\\t"
+         "sc.<amo>\\t%7,%1\\n\\t"
+         "beq\\t$zero,%7,1b";
 }
 
   [(set (attr "length") (const_int 32))])
@@ -345,20 +330,15 @@
    (clobber (match_scratch:GPR 8 "=&r"))]
   ""
 {
-  static char buff[256] = {0};
-
-  buff[0] = '\0';
-  sprintf (buff + strlen (buff), "%%G6\\n\\t");
-  sprintf (buff + strlen (buff), "1:\\n\\t");
-  sprintf (buff + strlen (buff), "ll.<amo>\\t%%0,%%1\\n\\t");
-  sprintf (buff + strlen (buff), "and\\t%%7,%%0,%%3\\n\\t");
-  sprintf (buff + strlen (buff), "sub.w\\t%%8,%%0,%%z5\\n\\t");
-  sprintf (buff + strlen (buff), "and\\t%%8,%%8,%%z2\\n\\t");
-  sprintf (buff + strlen (buff), "or%%i8\\t%%7,%%7,%%8\\n\\t");
-  sprintf (buff + strlen (buff), "sc.<amo>\\t%%7,%%1\\n\\t");
-  sprintf (buff + strlen (buff), "beq\\t$zero,%%7,1b");
-
-  return buff;
+  return "%G6\\n\\t"
+         "1:\\n\\t"
+         "ll.<amo>\\t%0,%1\\n\\t"
+         "and\\t%7,%0,%3\\n\\t"
+         "sub.w\\t%8,%0,%z5\\n\\t"
+         "and\\t%8,%8,%z2\\n\\t"
+         "or%i8\\t%7,%7,%8\\n\\t"
+         "sc.<amo>\\t%7,%1\\n\\t"
+         "beq\\t$zero,%7,1b";
 }
   [(set (attr "length") (const_int 32))])
 
@@ -376,20 +356,15 @@
    (clobber (match_scratch:GPR 8 "=&r"))]
   ""
 {
-  static char buff[256] = {0};
-
-  buff[0] = '\0';
-  sprintf (buff + strlen (buff), "%%G6\\n\\t");
-  sprintf (buff + strlen (buff), "1:\\n\\t");
-  sprintf (buff + strlen (buff), "ll.<amo>\\t%%0,%%1\\n\\t");
-  sprintf (buff + strlen (buff), "and\\t%%7,%%0,%%3\\n\\t");
-  sprintf (buff + strlen (buff), "and\\t%%8,%%0,%%z5\\n\\t");
-  sprintf (buff + strlen (buff), "and\\t%%8,%%8,%%z2\\n\\t");
-  sprintf (buff + strlen (buff), "or%%i8\\t%%7,%%7,%%8\\n\\t");
-  sprintf (buff + strlen (buff), "sc.<amo>\\t%%7,%%1\\n\\t");
-  sprintf (buff + strlen (buff), "beq\\t$zero,%%7,1b");
-
-  return buff;
+  return "%G6\\n\\t"
+         "1:\\n\\t"
+         "ll.<amo>\\t%0,%1\\n\\t"
+         "and\\t%7,%0,%3\\n\\t"
+         "and\\t%8,%0,%z5\\n\\t"
+         "and\\t%8,%8,%z2\\n\\t"
+         "or%i8\\t%7,%7,%8\\n\\t"
+         "sc.<amo>\\t%7,%1\\n\\t"
+         "beq\\t$zero,%7,1b";
 }
   [(set (attr "length") (const_int 32))])
 
@@ -407,20 +382,15 @@
    (clobber (match_scratch:GPR 8 "=&r"))]
   ""
 {
-  static char buff[256] = {0};
-
-  buff[0] = '\0';
-  sprintf (buff + strlen (buff), "%%G6\\n\\t");
-  sprintf (buff + strlen (buff), "1:\\n\\t");
-  sprintf (buff + strlen (buff), "ll.<amo>\\t%%0,%%1\\n\\t");
-  sprintf (buff + strlen (buff), "and\\t%%7,%%0,%%3\\n\\t");
-  sprintf (buff + strlen (buff), "xor\\t%%8,%%0,%%z5\\n\\t");
-  sprintf (buff + strlen (buff), "and\\t%%8,%%8,%%z2\\n\\t");
-  sprintf (buff + strlen (buff), "or%%i8\\t%%7,%%7,%%8\\n\\t");
-  sprintf (buff + strlen (buff), "sc.<amo>\\t%%7,%%1\\n\\t");
-  sprintf (buff + strlen (buff), "beq\\t$zero,%%7,1b");
-
-  return buff;
+  return "%G6\\n\\t"
+         "1:\\n\\t"
+         "ll.<amo>\\t%0,%1\\n\\t"
+         "and\\t%7,%0,%3\\n\\t"
+         "xor\\t%8,%0,%z5\\n\\t"
+         "and\\t%8,%8,%z2\\n\\t"
+         "or%i8\\t%7,%7,%8\\n\\t"
+         "sc.<amo>\\t%7,%1\\n\\t"
+         "beq\\t$zero,%7,1b";
 }
 
   [(set (attr "length") (const_int 32))])
@@ -439,20 +409,15 @@
    (clobber (match_scratch:GPR 8 "=&r"))]
   ""
 {
-  static char buff[256] = {0};
-
-  buff[0] = '\0';
-  sprintf (buff + strlen (buff), "%%G6\\n\\t");
-  sprintf (buff + strlen (buff), "1:\\n\\t");
-  sprintf (buff + strlen (buff), "ll.<amo>\\t%%0,%%1\\n\\t");
-  sprintf (buff + strlen (buff), "and\\t%%7,%%0,%%3\\n\\t");
-  sprintf (buff + strlen (buff), "or\\t%%8,%%0,%%z5\\n\\t");
-  sprintf (buff + strlen (buff), "and\\t%%8,%%8,%%z2\\n\\t");
-  sprintf (buff + strlen (buff), "or%%i8\\t%%7,%%7,%%8\\n\\t");
-  sprintf (buff + strlen (buff), "sc.<amo>\\t%%7,%%1\\n\\t");
-  sprintf (buff + strlen (buff), "beq\\t$zero,%%7,1b");
-
-  return buff;
+  return "%G6\\n\\t"
+         "1:\\n\\t"
+         "ll.<amo>\\t%0,%1\\n\\t"
+         "and\\t%7,%0,%3\\n\\t"
+         "or\\t%8,%0,%z5\\n\\t"
+         "and\\t%8,%8,%z2\\n\\t"
+         "or%i8\\t%7,%7,%8\\n\\t"
+         "sc.<amo>\\t%7,%1\\n\\t"
+         "beq\\t$zero,%7,1b";
 }
 
   [(set (attr "length") (const_int 32))])
@@ -471,20 +436,15 @@
    (clobber (match_scratch:GPR 8 "=&r"))]
   ""
 {
-  static char buff[256] = {0};
-
-  buff[0] = '\0';
-  sprintf (buff + strlen (buff), "%%G6\\n\\t");
-  sprintf (buff + strlen (buff), "1:\\n\\t");
-  sprintf (buff + strlen (buff), "ll.<amo>\\t%%0,%%1\\n\\t");
-  sprintf (buff + strlen (buff), "and\\t%%7,%%0,%%3\\n\\t");
-  sprintf (buff + strlen (buff), "and\\t%%8,%%0,%%z5\\n\\t");
-  sprintf (buff + strlen (buff), "xor\\t%%8,%%8,%%z2\\n\\t");
-  sprintf (buff + strlen (buff), "or%%i8\\t%%7,%%7,%%8\\n\\t");
-  sprintf (buff + strlen (buff), "sc.<amo>\\t%%7,%%1\\n\\t");
-  sprintf (buff + strlen (buff), "beq\\t$zero,%%7,1b");
-
-  return buff;
+  return "%G6\\n\\t"
+         "1:\\n\\t"
+         "ll.<amo>\\t%0,%1\\n\\t"
+         "and\\t%7,%0,%3\\n\\t"
+         "and\\t%8,%0,%z5\\n\\t"
+         "xor\\t%8,%8,%z2\\n\\t"
+         "or%i8\\t%7,%7,%8\\n\\t"
+         "sc.<amo>\\t%7,%1\\n\\t"
+         "beq\\t$zero,%7,1b";
 }
   [(set (attr "length") (const_int 32))])
 
