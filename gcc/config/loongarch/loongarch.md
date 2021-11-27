@@ -92,7 +92,6 @@
   ;; load immediate
   UNSPEC_LU52I_D
 
-  ;; FIXME: Stack tie
   UNSPEC_TIE
 
   ;; Register save and restore.
@@ -104,7 +103,6 @@
   UNSPEC_CRCC
 ])
 
-;; FIXME
 (define_constants
   [(RETURN_ADDR_REGNUM		1)
    (T0_REGNUM			12)
@@ -2163,7 +2161,6 @@
 ;; argument if the 1st is zero.  This means operand 2 and 3 are
 ;; inverted in the instruction.
 
-;; FIXME: fsel
 (define_insn "*sel<mode>"
   [(set (match_operand:ANYF 0 "register_operand" "=f")
 	(if_then_else:ANYF
@@ -2179,11 +2176,10 @@
 ;; These are the main define_expand's used to make conditional moves.
 
 (define_expand "mov<mode>cc"
-  [(set (match_dup 4) (match_operand 1 "comparison_operator"))
-   (set (match_operand:GPR 0 "register_operand")
-	(if_then_else:GPR (match_dup 5)
-			  (match_operand:GPR 2 "reg_or_0_operand")
-			  (match_operand:GPR 3 "reg_or_0_operand")))]
+  [(set (match_operand:GPR 0 "register_operand")
+	(if_then_else:GPR (match_operator 1 "comparison_operator"
+			 [(match_operand:GPR 2 "reg_or_0_operand")
+			  (match_operand:GPR 3 "reg_or_0_operand")])))]
   "TARGET_COND_MOVE_INT"
 {
   if (!INTEGRAL_MODE_P (GET_MODE (XEXP (operands[1], 0))))
@@ -2193,14 +2189,12 @@
   DONE;
 })
 
-;; FIXME: fsel
 (define_expand "mov<mode>cc"
-  [(set (match_dup 4) (match_operand 1 "comparison_operator"))
-   (set (match_operand:ANYF 0 "register_operand")
-	(if_then_else:ANYF (match_dup 5)
-			      (match_operand:ANYF 2 "reg_or_0_operand")
-			      (match_operand:ANYF 3 "reg_or_0_operand")))]
-  "TARGET_HARD_FLOAT && TARGET_COND_MOVE_FLOAT"
+  [(set (match_operand:ANYF 0 "register_operand")
+	(if_then_else:ANYF (match_operator 1 "comparison_operator"
+			  [(match_operand:ANYF 2 "reg_or_0_operand")
+			   (match_operand:ANYF 3 "reg_or_0_operand")])))]
+  "TARGET_COND_MOVE_FLOAT"
 {
   if (!FLOAT_MODE_P (GET_MODE (XEXP (operands[1], 0))))
     FAIL;
@@ -2208,7 +2202,6 @@
   loongarch_expand_conditional_move (operands);
   DONE;
 })
-
 ;; lu32i.d
 (define_insn "lu32i_d"
   [(set (match_operand:DI 0 "register_operand" "=r")

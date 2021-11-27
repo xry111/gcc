@@ -1,4 +1,4 @@
-/* Definitions for RTX-operation-cost-related data structures.
+/* Definitions for microarchitecture-related data structures.
    Copyright (C) 2021 Free Software Foundation, Inc.
    Contributed by Loongson Ltd.
 
@@ -18,10 +18,10 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
-#ifndef LOONGARCH_RTX_COST_H
-#define LOONGARCH_RTX_COST_H
+#ifndef LOONGARCH_TUNE_H
+#define LOONGARCH_TUNE_H
 
-/* Costs of various operations on the different architectures.  */
+/* RTX costs of various operations on the different architectures.  */
 struct loongarch_rtx_cost_data
 {
   unsigned short fp_add;
@@ -77,4 +77,12 @@ static const struct loongarch_rtx_cost_data loongarch_rtx_cost_optimize_size = {
     4				    /* memory_latency */
 };
 
-#endif /* LOONGARCH_RTX_COST_H */
+
+/* Cache size record of known processor models.  */
+struct loongarch_cache {
+    int l1d_line_size;  /* bytes */
+    int l1d_size;       /* KiB */
+    int l2d_size;       /* kiB */
+};
+
+#endif /* LOONGARCH_TUNE_H */

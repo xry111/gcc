@@ -977,14 +977,14 @@ Objective-C and Objective-C++ Dialects}.
 -msign-extend-enabled  -muser-enabled}
 
 @emph{LoongArch Options}
-@gccoptlist{-march=@var{cpu-type}  -mtune=@var{cpu-type} @gol
--mabi=@var{abi-int-name}  -mfloat-abi=@var{abi-float-name} @gol
--mfpu=@var{fpu-type}  -msoft-float  -msingle-float @gol
--mdouble-float -mbranch-cost=@var{n}  -mcheck-zero-division @gol
--mno-check-zero-division  -mcond-move-int  -mno-cond-move-int @gol
--mcond-move-float  -mno-cond-move-float  -memcpy  -mno-memcpy @gol
--mlra  -mstrict-align  -mmax-inline-memcpy-size=@var{n} @gol
--mcmodel=@var{code-model}}
+@gccoptlist{-march=@var{cpu-type}  -mtune=@var{cpu-type} -mabi=@var{base-abi-type} @gol
+-mfpu=@var{fpu-type} -msoft-float -msingle-float -mdouble-float @gol
+-mbranch-cost=@var{n}  -mcheck-zero-division -mno-check-zero-division @gol
+-mcond-move-int  -mno-cond-move-int @gol
+-mcond-move-float  -mno-cond-move-float @gol
+-memcpy  -mno-memcpy -mstrict-align @gol
+-mmax-inline-memcpy-size=@var{n} @gol
+-mlra -mcmodel=@var{code-model}}
 
 @emph{M32R/D Options}
 @gccoptlist{-m32r2  -m32rx  -m32r @gol
@@ -23459,59 +23459,67 @@ of the selected instruction set.
 A generic CPU with 64-bit extensions.
 @item la464
 LoongArch LA464 CPU with LBT, LSX, LASX, LVZ.
-
 @end table
+
 
 @item -mtune=@var{cpu-type}
 @opindex mtune
-Optimize the ouput for the given processor, specified by microarchitecture
+Optimize the output for the given processor, specified by microarchitecture
 name.
 
-
-@item -mabi=@var{abi-int-name}
-@opindex -mabi
-Generate code for the specified integer calling convention. @gol
-Set int ABI to one of: @gol
-
+@item -mabi=@var{base-abi-type}
+@opindex mabi
+Generate code for the specified calling convention. @gol
+Set base ABI to one of: @gol
 @table @samp
-@item lp64
-Data model where int is 32 bits, but long int and pointers are 64
-bits.
-@item ilp32
-Date model where int, long int and pointers are 32 bits. This ABI
-is not yet implemented.
+@item lp64d
+Uses 64-bit general purpose registers and 32/64-bit floating-point
+registers for parameter passing.  Data model is LP64, where int
+is 32 bits, while long int and pointers are 64 bits.
+@item lp64f
+Uses 64-bit general purpose registers and 32-bit floating-point
+registers for parameter passing.  Data model is LP64, where int
+is 32 bits, while long int and pointers are 64 bits.
+@item lp64s
+Uses 64-bit general purpose registers and no floating-point
+registers for parameter passing.  Data model is LP64, where int
+is 32 bits, while long int and pointers are 64 bits.
 @end table
 
 
-@item -mfloat-abi=@var{abi-float-name}
-@opindex -mfloat-abi
-Generate code for the specified floating point calling convention. @gol
-Set float ABI to one of:
-
+@item -mfpu=@var{fpu-type}
+@opindex mfpu
+Generating code for the specified FPU type: @gol
 @table @samp
-@item soft
-No FPR is used for parameter passing.
-@item single
-32-bit FPRs are used for parameter passing.
-@item double
-64-bit FPRs are used for parameter passing.
+@item 64
+Allow the use of hardware floating-point instructions for 32-bit
+and 64-bit operations.
+@item 32
+Allow the use of hardware floating-point instructions for 32-bit
+operations.
+@item none
+@item 0
+Prevent the use of hardware floating-point instructions.
 @end table
 
-@item -mfpu=@var{none}
-@itemx -msoft-float
-@opindex -mfpu=none
-Prevent the use of all hardware floating-point instructions.
 
-@item -mfpu=@var{single}
-@itemx -msingle-float
-@opindex -mfpu=single
-Restrict the use of hardware floating-point instructions to 32-bit operations.
+@item -msoft-float
+@opindex msoft-float
+Force @option{-mfpu=none} and prevents the use of floating-point
+registers for parameter passing.  This option may change the target
+ABI.
 
-@item -mfpu=@var{double}
-@itemx -mdouble-float
-@opindex -mfpu=double
-Allow hardwared floating-point instructions to cover both 32-bit an 64-bit operations.
-This is the default.
+@item -msingle-float
+@opindex -msingle-float
+Force @option{-mfpu=32} and allow the use of 32-bit floating-point
+registers for parameter passing.  This option may change the target
+ABI.
+
+@item -mdouble-float
+@opindex -mdouble-float
+Force @option{-mfpu=64} and allow the use of 32/64-bit floating-point
+registers for parameter passing.  This option may change the target
+ABI.
 
 
 @item -mbranch-cost=@var{n}

@@ -36,24 +36,22 @@ along with GCC; see the file COPYING3.  If not see
    the selected processor.  If INFO's canonical name is "foo",
    define PREFIX to be "foo", and define an additional macro
    PREFIX_FOO.  */
-#define LARCH_CPP_SET_PROCESSOR(PREFIX, CPU_TYPE)			      \
-  do									      \
-    {									      \
-      char *macro, *p;							      \
-      int cpu_type = (CPU_TYPE);					      \
-									      \
-      if (cpu_type == CPU_NATIVE)					      \
-	cpu_type = loongarch_native_cpu_type;				      \
-									      \
-      macro = concat ((PREFIX), "_", loongarch_cpu_strings[cpu_type], NULL);  \
-      for (p = macro; *p != 0; p++)					      \
-	*p = TOUPPER (*p);						      \
-									      \
-      builtin_define (macro);						      \
-      builtin_define_with_value ((PREFIX),				      \
-				 loongarch_cpu_strings[cpu_type], 1);	      \
-      free (macro);							      \
-    }									      \
+#define LARCH_CPP_SET_PROCESSOR(PREFIX, CPU_TYPE)			\
+  do									\
+    {									\
+      char *macro, *p;							\
+      int cpu_type = (CPU_TYPE);					\
+									\
+      macro = concat ((PREFIX), "_",					\
+		      loongarch_cpu_strings[cpu_type], NULL);		\
+      for (p = macro; *p != 0; p++)					\
+	*p = TOUPPER (*p);						\
+									\
+      builtin_define (macro);						\
+      builtin_define_with_value ((PREFIX),				\
+				 loongarch_cpu_strings[cpu_type], 1);	\
+      free (macro);							\
+    }									\
   while (0)
 
 /* TODO: what is the pfile technique ??? !!! */
@@ -65,44 +63,45 @@ loongarch_cpu_cpp_builtins (cpp_reader *pfile)
   builtin_assert ("cpu=loongarch");
   builtin_define ("__loongarch__");
 
-  LARCH_CPP_SET_PROCESSOR ("_LOONGARCH_ARCH", loongarch_cpu_arch);
-  LARCH_CPP_SET_PROCESSOR ("_LOONGARCH_TUNE", loongarch_cpu_tune);
+  LARCH_CPP_SET_PROCESSOR ("_LOONGARCH_ARCH", __ACTUAL_ARCH);
+  LARCH_CPP_SET_PROCESSOR ("_LOONGARCH_TUNE", __ACTUAL_TUNE);
 
-  /* Integer ISA/ABI */
+  /* Base architecture / ABI.  */
   if (TARGET_64BIT)
-    builtin_define ("__loongarch_gpr=64");
-
-  switch (loongarch_abi_int)
     {
-    case ABI_LP64:
-      builtin_define ("_ABILP64=3");
-      builtin_define ("_LOONGARCH_SIM=_ABILP64");
+      builtin_define ("__loongarch_grlen=64");
       builtin_define ("__loongarch64");
-      builtin_define ("__loongarch_lp64");
-      break;
     }
 
-  /* Floating-Point ISA/ABI */
-  if (TARGET_DOUBLE_FLOAT)
-    builtin_define ("__loongarch_fpr=64");
-  else if (TARGET_SINGLE_FLOAT)
-    builtin_define ("__loongarch_fpr=32");
-  else
-    builtin_define ("__loongarch_fpr=0");
+  if (TARGET_ABI_LP64)
+    {
+      builtin_define ("_ABILP64=3");
+      builtin_define ("_LOONGARCH_SIM=_ABILP64");
+      builtin_define ("__loongarch_lp64");
+    }
 
   /* These defines reflect the ABI in use, not whether the
      FPU is directly accessible.  */
   if (TARGET_DOUBLE_FLOAT_ABI)
-    builtin_define ("__loongarch_double_float");
+    builtin_define ("__loongarch_double_float=1");
   else if (TARGET_SINGLE_FLOAT_ABI)
-    builtin_define ("__loongarch_single_float");
+    builtin_define ("__loongarch_single_float=1");
 
   if (TARGET_DOUBLE_FLOAT_ABI || TARGET_SINGLE_FLOAT_ABI)
-    builtin_define ("__loongarch_hard_float");
+    builtin_define ("__loongarch_hard_float=1");
   else
-    builtin_define ("__loongarch_soft_float");
+    builtin_define ("__loongarch_soft_float=1");
 
-  /* Native Data Sizes */
+
+  /* ISA Extensions.  */
+  if (TARGET_DOUBLE_FLOAT)
+    builtin_define ("__loongarch_frlen=64");
+  else if (TARGET_SINGLE_FLOAT)
+    builtin_define ("__loongarch_frlen=32");
+  else
+    builtin_define ("__loongarch_frlen=0");
+
+  /* Native Data Sizes.  */
   builtin_define_with_int_value ("_LOONGARCH_SZINT", INT_TYPE_SIZE);
   builtin_define_with_int_value ("_LOONGARCH_SZLONG", LONG_TYPE_SIZE);
   builtin_define_with_int_value ("_LOONGARCH_SZPTR", POINTER_SIZE);

@@ -87,7 +87,7 @@ along with GCC; see the file COPYING3.  If not see
 #endif
 
 #undef ASM_SPEC
-#define ASM_SPEC "%{mabi=*} %{mfloat-abi=*} %{subtarget_asm_spec}"
+#define ASM_SPEC "%{mabi=*} %{subtarget_asm_spec}"
 
 /* Extra switches sometimes passed to the linker.  */
 
@@ -446,7 +446,6 @@ along with GCC; see the file COPYING3.  If not see
 #define HARD_FRAME_POINTER_IS_FRAME_POINTER 0
 #define HARD_FRAME_POINTER_IS_ARG_POINTER 0
 
-/* FIXME: */
 /* Register in which static-chain is passed to a function.  */
 #define STATIC_CHAIN_REGNUM (GP_REG_FIRST + 20) /* $t8  */
 

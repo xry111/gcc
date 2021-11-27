@@ -43,7 +43,7 @@ Name(isa_base) Type(int)
 Basic ISAs of LoongArch:
 
 EnumValue
-Enum(isa_base) String(la64) Value(ISA_BASE_LA64V100)
+Enum(isa_base) String(@@STR_ISA_BASE_LA64V100@@) Value(ISA_BASE_LA64V100)
 
 
 ;; ISA extensions / adjustments
@@ -52,31 +52,31 @@ Name(isa_ext_fpu) Type(int)
 FPU types of LoongArch:
 
 EnumValue
-Enum(isa_ext_fpu) String(none) Value(ISA_EXT_NOFPU)
+Enum(isa_ext_fpu) String(@@STR_ISA_EXT_NOFPU@@) Value(ISA_EXT_NOFPU)
 
 EnumValue
-Enum(isa_ext_fpu) String(32) Value(ISA_EXT_FPU32)
+Enum(isa_ext_fpu) String(@@STR_ISA_EXT_FPU32@@) Value(ISA_EXT_FPU32)
 
 EnumValue
-Enum(isa_ext_fpu) String(64) Value(ISA_EXT_FPU64)
+Enum(isa_ext_fpu) String(@@STR_ISA_EXT_FPU64@@) Value(ISA_EXT_FPU64)
 
-mfpu=
+m@@OPTSTR_ISA_EXT_FPU@@=
 Target RejectNegative Joined ToLower Enum(isa_ext_fpu) Var(la_opt_fpu) Init(M_OPTION_NOT_SEEN)
--mfpu=FPU	Generate code for the given FPU.
+-m@@OPTSTR_ISA_EXT_FPU@@=FPU	Generate code for the given FPU.
 
-mfpu=0
-Target RejectNegative Alias(mfpu=,none)
+m@@OPTSTR_ISA_EXT_FPU@@=@@STR_ISA_EXT_FPU0@@
+Target RejectNegative Alias(m@@OPTSTR_ISA_EXT_FPU@@=,@@STR_ISA_EXT_NOFPU@@)
 
-msoft-float
-Target Driver RejectNegative Var(la_opt_switches) Mask(FORCE_SOFTF) Negative(msingle-float)
+m@@OPTSTR_SOFT_FLOAT@@
+Target Driver RejectNegative Var(la_opt_switches) Mask(FORCE_SOFTF) Negative(m@@OPTSTR_SINGLE_FLOAT@@)
 Prevent the use of all hardware floating-point instructions.
 
-msingle-float
-Target Driver RejectNegative Var(la_opt_switches) Mask(FORCE_F32) Negative(mdouble-float)
+m@@OPTSTR_SINGLE_FLOAT@@
+Target Driver RejectNegative Var(la_opt_switches) Mask(FORCE_F32) Negative(m@@OPTSTR_DOUBLE_FLOAT@@)
 Restrict the use of hardware floating-point instructions to 32-bit operations.
 
-mdouble-float
-Target Driver RejectNegative Var(la_opt_switches) Mask(FORCE_F64) Negative(msoft-float)
+m@@OPTSTR_DOUBLE_FLOAT@@
+Target Driver RejectNegative Var(la_opt_switches) Mask(FORCE_F64) Negative(m@@OPTSTR_SOFT_FLOAT@@)
 Allow hardware floating-point instructions to cover both 32-bit and 64-bit operations.
 
 
@@ -86,21 +86,21 @@ Name(cpu_type) Type(int)
 LoongArch CPU types:
 
 EnumValue
-Enum(cpu_type) String(native) Value(CPU_NATIVE)
+Enum(cpu_type) String(@@STR_CPU_NATIVE@@) Value(CPU_NATIVE)
 
 EnumValue
-Enum(cpu_type) String(loongarch64) Value(CPU_LOONGARCH64)
+Enum(cpu_type) String(@@STR_CPU_LOONGARCH64@@) Value(CPU_LOONGARCH64)
 
 EnumValue
-Enum(cpu_type) String(la464) Value(CPU_LA464)
+Enum(cpu_type) String(@@STR_CPU_LA464@@) Value(CPU_LA464)
 
-march=
+m@@OPTSTR_ARCH@@=
 Target RejectNegative Joined Enum(cpu_type) Var(la_opt_cpu_arch) Init(M_OPTION_NOT_SEEN)
--march=PROCESSOR	Generate code for the given PROCESSOR ISA.
+-m@@OPTSTR_ARCH@@=PROCESSOR	Generate code for the given PROCESSOR ISA.
 
-mtune=
+m@@OPTSTR_TUNE@@=
 Target RejectNegative Joined Enum(cpu_type) Var(la_opt_cpu_tune) Init(M_OPTION_NOT_SEEN)
--mtune=PROCESSOR	Generate optimized code for PROCESSOR.
+-m@@OPTSTR_TUNE@@=PROCESSOR	Generate optimized code for PROCESSOR.
 
 
 ; ABI related options
@@ -112,17 +112,17 @@ Name(abi_base) Type(int)
 Base ABI types for LoongArch:
 
 EnumValue
-Enum(abi_base) String(lp64d) Value(ABI_BASE_LP64D)
+Enum(abi_base) String(@@STR_ABI_BASE_LP64D@@) Value(ABI_BASE_LP64D)
 
 EnumValue
-Enum(abi_base) String(lp64f) Value(ABI_BASE_LP64F)
+Enum(abi_base) String(@@STR_ABI_BASE_LP64F@@) Value(ABI_BASE_LP64F)
 
 EnumValue
-Enum(abi_base) String(lp64s) Value(ABI_BASE_LP64S)
+Enum(abi_base) String(@@STR_ABI_BASE_LP64S@@) Value(ABI_BASE_LP64S)
 
-mabi=
+m@@OPTSTR_ABI_BASE@@=
 Target RejectNegative Joined ToLower Enum(abi_base) Var(la_opt_abi_base) Init(M_OPTION_NOT_SEEN)
--mabi=BASEABI	Generate code that conforms to the given BASEABI.
+-m@@OPTSTR_ABI_BASE@@=BASEABI	Generate code that conforms to the given BASEABI.
 
 ;; ABI Extension
 Variable
@@ -170,19 +170,19 @@ Name(cmodel) Type(int)
 The code model option names for -mcmodel:
 
 EnumValue
-Enum(cmodel) String(normal) Value(CMODEL_NORMAL)
+Enum(cmodel) String(@@STR_CMODEL_NORMAL@@) Value(CMODEL_NORMAL)
 
 EnumValue
-Enum(cmodel) String(tiny) Value(CMODEL_TINY)
+Enum(cmodel) String(@@STR_CMODEL_TINY@@) Value(CMODEL_TINY)
 
 EnumValue
-Enum(cmodel) String(tiny-static) Value(CMODEL_TINY_STATIC)
+Enum(cmodel) String(@@STR_CMODEL_TS@@) Value(CMODEL_TINY_STATIC)
 
 EnumValue
-Enum(cmodel) String(large) Value(CMODEL_LARGE)
+Enum(cmodel) String(@@STR_CMODEL_LARGE@@) Value(CMODEL_LARGE)
 
 EnumValue
-Enum(cmodel) String(extreme) Value(CMODEL_EXTREME)
+Enum(cmodel) String(@@STR_CMODEL_EXTREME@@) Value(CMODEL_EXTREME)
 
 mcmodel=
 Target RejectNegative Joined Enum(cmodel) Var(la_opt_cmodel) Init(CMODEL_NORMAL)

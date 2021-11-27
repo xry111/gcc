@@ -27,23 +27,34 @@ driver_set_m_flag (int argc, const char **argv);
 extern const char*
 driver_get_normalized_m_opts (int argc, const char **argv);
 
-
 #define EXTRA_SPEC_FUNCTIONS \
   { "set_m_flag", driver_set_m_flag  }, \
   { "get_normalized_m_opts", driver_get_normalized_m_opts  },
 
+/* Pre-process ABI-related options.  */
 #define DRIVER_HANDLE_MACHINE_OPTIONS \
-  " %{c|S|E|nostdlib: %:set_m_flag(no_link 1)} " \
-  " %{nostartfiles: %{nodefaultlibs: %:set_m_flag(no_link 1)}} " \
-  " %{mabi=*: %:set_m_flag(abi %*)} %<mabi=*" \
-  " %{march=*: %:set_m_flag(arch %*)} %<march=*" \
-  " %{mtune=*: %:set_m_flag(tune %*)} %<mtune=*" \
-  " %{mfloat-abi=*: %:set_m_flag(float-abi %*)} %<mfloat-abi=*" \
-  " %{mfpu=*: %:set_m_flag(fpu %*)} %<mfpu=*" \
+  " %{c|S|E|nostdlib: %:set_m_flag(no_link)}" \
+  " %{nostartfiles: %{nodefaultlibs: %:set_m_flag(no_link)}}" \
+  " %{mabi=*: %:set_m_flag(abi=%*)}" \
+  " %{march=*: %:set_m_flag(arch=%*)}" \
+  " %{mtune=*: %:set_m_flag(tune=%*)}" \
+  " %{mfpu=*: %:set_m_flag(fpu=%*)}" \
+  " %{msoft-float: %:set_m_flag(soft-float)}" \
+  " %{msingle-float: %:set_m_flag(single-float)}" \
+  " %{mdouble-float: %:set_m_flag(double-float)}" \
   " %:get_normalized_m_opts()"
 
 #define DRIVER_SELF_SPECS \
   DRIVER_HANDLE_MACHINE_OPTIONS
+
+/* ABI spec strings.  */
+#define ABI_GRLEN_SPEC \
+  "%{mabi=lp64*:64}"   \
+
+#define ABI_SPEC \
+  "%{mabi=lp64d:lp64d}" \
+  "%{mabi=lp64f:lp64f}" \
+  "%{mabi=lp64s:lp64s}" \
 
 #endif /* LOONGARCH_DRIVER_H */
 

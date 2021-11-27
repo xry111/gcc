@@ -31,12 +31,14 @@ along with GCC; see the file COPYING3.  If not see
 #include "loongarch-driver.h"
 
 static int
-  loongarch_isa_int_driver = M_OPTION_NOT_SEEN,
-  loongarch_isa_float_driver = M_OPTION_NOT_SEEN,
-  loongarch_abi_int_driver = M_OPTION_NOT_SEEN,
-  loongarch_abi_float_driver = M_OPTION_NOT_SEEN,
-  loongarch_arch_driver = M_OPTION_NOT_SEEN,
-  loongarch_tune_driver = M_OPTION_NOT_SEEN;
+  opt_arch_driver = M_OPTION_NOT_SEEN,
+  opt_tune_driver = M_OPTION_NOT_SEEN,
+  opt_fpu_driver = M_OPTION_NOT_SEEN,
+  opt_abi_base_driver = M_OPTION_NOT_SEEN,
+  opt_abi_ext_driver = M_OPTION_NOT_SEEN,
+  opt_cmodel_driver = M_OPTION_NOT_SEEN;
+
+int opt_switches = 0;
 
 /* This flag is set to 1 if we believe that the user might be avoiding
    linking (implicitly) against something from the startfile search paths.  */
@@ -50,60 +52,77 @@ static int no_link = 0;
 	(FLAG) = i;						\
   }
 
+/* Use the public obstack from the gcc driver (defined in gcc.c).
+   This is for allocating space for the returned string.  */
+extern struct obstack opts_obstack;
+
+#define APPEND_LTR(S)				      \
+  obstack_grow (&opts_obstack, (const void*) (S),     \
+		sizeof ((S)) / sizeof (char) -1)
+
+#define APPEND_VAL(S) \
+  obstack_grow (&opts_obstack, (const void*) (S), strlen ((S)))
+
+
 const char*
 driver_set_m_flag (int argc, const char **argv)
 {
-  if (argc != 2)
-    return "%eset_m_flag requires exactly 2 arguments.";
+  int parm_off = 0;
+
+  if (argc != 1)
+    return "%eset_m_flag requires exactly 1 argument.";
+
+#undef PARM
+#define PARM (argv[0] + parm_off)
+
+/* Note: sizeof (OPTSTR_##NAME) equals the length of "<option>=".  */
+#undef MATCH_OPT
+#define MATCH_OPT(NAME) \
+  (strncmp (argv[0], OPTSTR_##NAME "=", \
+	    (parm_off = sizeof (OPTSTR_##NAME))) == 0)
 
   if (strcmp (argv[0], "no_link") == 0)
     {
       no_link = 1;
     }
-  else if (strcmp (argv[0], "abi") == 0)
+  else if (MATCH_OPT (ABI_BASE))
     {
       LARCH_DRIVER_SET_M_FLAG (
-	loongarch_abi_int_strings, N_INT_ABI_TYPES,
-	loongarch_abi_int_driver, argv[1])
+	loongarch_abi_base_strings, N_ABI_BASE_TYPES,
+	opt_abi_base_driver, PARM)
     }
-
-  else if (strcmp (argv[0], "fpu") == 0)
+  else if (MATCH_OPT (ISA_EXT_FPU))
     {
-      LARCH_DRIVER_SET_M_FLAG (
-	loongarch_isa_float_strings, N_FLOAT_ISA_TYPES,
-	loongarch_isa_float_driver, argv[1])
+      LARCH_DRIVER_SET_M_FLAG (loongarch_isa_ext_strings, N_ISA_EXT_FPU_TYPES,
+			       opt_fpu_driver, PARM)
     }
-
-  else if (strcmp (argv[0], "float-abi") == 0)
+  else if (MATCH_OPT (ARCH))
     {
-      LARCH_DRIVER_SET_M_FLAG (
-	loongarch_abi_float_strings, N_FLOAT_ABI_TYPES,
-	loongarch_abi_float_driver, argv[1])
+      LARCH_DRIVER_SET_M_FLAG (loongarch_cpu_strings, N_ARCH_TYPES,
+			       opt_arch_driver, PARM)
     }
-
-  else if (strcmp (argv[0], "arch") == 0)
+  else if (MATCH_OPT (TUNE))
     {
-      LARCH_DRIVER_SET_M_FLAG (
-	loongarch_cpu_strings, N_CPU_TYPES,
-	loongarch_arch_driver, argv[1])
+      LARCH_DRIVER_SET_M_FLAG (loongarch_cpu_strings, N_TUNE_TYPES,
+			       opt_tune_driver, PARM)
     }
-
-  else if (strcmp (argv[0], "tune") == 0)
+  else if (MATCH_OPT (CMODEL))
     {
-      LARCH_DRIVER_SET_M_FLAG (
-	loongarch_cpu_strings, N_CPU_TYPES,
-	loongarch_tune_driver, argv[1])
+      LARCH_DRIVER_SET_M_FLAG (loongarch_cmodel_strings, N_CMODEL_TYPES,
+			       opt_cmodel_driver, PARM)
     }
+  else /* switches */
+    {
+      int switch_idx = M_OPTION_NOT_SEEN;
 
-  else
-    return "%eUnknown flag type to set_m_flag.";
+      LARCH_DRIVER_SET_M_FLAG (loongarch_switch_strings, N_SWITCH_TYPES,
+			       switch_idx, argv[0])
 
+      if (switch_idx != M_OPTION_NOT_SEEN)
+	opt_switches |= loongarch_switch_mask[switch_idx];
+    }
   return "";
 }
-
-/* Use the public obstack from gcc driver (defined in gcc.c).
-   This is for the allocation of returned strings.  */
-extern struct obstack opts_obstack;
 
 const char*
 driver_get_normalized_m_opts (int argc, const char **argv)
@@ -114,88 +133,55 @@ driver_get_normalized_m_opts (int argc, const char **argv)
       return " %eget_normalized_m_opts requires no argument.\n";
     }
 
-  loongarch_handle_m_option_combinations (
-    & loongarch_arch_driver,
-    & loongarch_tune_driver,
-    & loongarch_isa_int_driver,
-    & loongarch_isa_float_driver,
-    & loongarch_abi_int_driver,
-    & loongarch_abi_float_driver,
-    NULL);
-
- /* Don't throw these ABI/multilib-related messages if not linking.  */
-  if (!no_link)
-    {
-      char* abi_str_current = concat
-	(loongarch_abi_int_strings[loongarch_abi_int_driver], "/",
-	 loongarch_abi_float_strings[loongarch_abi_float_driver], NULL);
-
-#ifdef __DISABLE_MULTILIB
-      if ((DEFAULT_ABI_INT != M_OPTION_NOT_SEEN
-	   && loongarch_abi_int_driver != DEFAULT_ABI_INT)
-	  || (DEFAULT_ABI_FLOAT != M_OPTION_NOT_SEEN
-	      && loongarch_abi_float_driver != DEFAULT_ABI_FLOAT))
-	{
-	  char* abi_str_default = concat
-	    (loongarch_abi_int_strings[DEFAULT_ABI_INT], "/",
-	     loongarch_abi_float_strings[DEFAULT_ABI_FLOAT], NULL);
-
-	  inform (UNKNOWN_LOCATION,
-	      "ABI change detected (%qs -> %qs) while multilib is disabled",
-	      abi_str_default, abi_str_current);
-	}
-#else
-      char* abi_str_current_s = concat ("@", abi_str_current, "@", NULL);
-
-      if (strstr (TM_MULTILIB_LIST, abi_str_current_s) == NULL)
-	{
-	  char* multilib_list
-	    = XALLOCAVEC (char, sizeof (TM_MULTILIB_LIST) - 2);
-
-	  /* Substituing all "@@"s in TM_MULTILIB_LIST with space,
-	     making it decent for printing.  */
-	  int j = 0;
-	  for (unsigned int i = 1; i < sizeof (TM_MULTILIB_LIST) - 2; i++)
-	    {
-	      if (TM_MULTILIB_LIST[i] == '@')
-		{
-		  multilib_list[j++] = ' ';
-		  i++;
-		}
-	      else
-		multilib_list[j++] = TM_MULTILIB_LIST[i];
-	    }
-	  multilib_list[j] = '\0';
-
-	  inform (UNKNOWN_LOCATION,
-	      "ABI (%qs) is not in the configured ABI list (%qs)",
-	      abi_str_current, multilib_list);
-	}
-#endif
-    }
+  loongarch_config_target (& la_target,
+			   opt_switches,
+			   opt_arch_driver,
+			   opt_tune_driver,
+			   opt_fpu_driver,
+			   opt_abi_base_driver,
+			   opt_abi_ext_driver,
+			   opt_cmodel_driver,
+			   !no_link /* follow_multilib_list */);
 
   /* Output normalized option strings.  */
   obstack_blank (&opts_obstack, 0);
 
-  #define APPEND_LTR(S) \
-    obstack_grow (&opts_obstack, (const void*) (S), sizeof ((S))/sizeof (char) -1)
+#undef APPEND_LTR
+#define APPEND_LTR(S) \
+  obstack_grow (&opts_obstack, (const void*) (S), \
+		sizeof ((S)) / sizeof (char) -1)
 
-  #define APPEND_VAL(S) \
-    obstack_grow (&opts_obstack, (const void*) (S), strlen ((S)))
+#undef APPEND_VAL
+#define APPEND_VAL(S) \
+  obstack_grow (&opts_obstack, (const void*) (S), strlen ((S)))
 
-  APPEND_LTR (" -mabi=");
-  APPEND_VAL (loongarch_abi_int_strings[loongarch_abi_int_driver]);
-  APPEND_LTR (" -march=");
-  APPEND_VAL (loongarch_cpu_strings[loongarch_arch_driver]);
-  APPEND_LTR (" -mtune=");
-  APPEND_VAL (loongarch_cpu_strings[loongarch_tune_driver]);
-  APPEND_LTR (" -mfloat-abi=");
-  APPEND_VAL (loongarch_abi_float_strings[loongarch_abi_float_driver]);
-  APPEND_LTR (" -mfpu=");
-  APPEND_VAL (loongarch_isa_float_strings[loongarch_isa_float_driver]);
+#undef APPEND_OPT
+#define APPEND_OPT(NAME) \
+   APPEND_LTR (" %<m" OPTSTR_##NAME "=* " \
+	       " -m" OPTSTR_##NAME "=")
+
+  for (int i = 0; i < N_SWITCH_TYPES; i++)
+    {
+      APPEND_LTR (" %<m");
+      APPEND_VAL (loongarch_switch_strings[i]);
+    }
+
+  APPEND_OPT (ABI_BASE);
+  APPEND_VAL (loongarch_abi_base_strings[la_target.abi.base]);
+
+  APPEND_OPT (ARCH);
+  APPEND_VAL (loongarch_cpu_strings[la_target.cpu_arch]);
+
+  APPEND_OPT (ISA_EXT_FPU);
+  APPEND_VAL (loongarch_isa_ext_strings[la_target.isa.fpu]);
+
+  APPEND_OPT (CMODEL);
+  APPEND_VAL (loongarch_cmodel_strings[la_target.cmodel]);
+
+  APPEND_OPT (TUNE);
+  APPEND_VAL (loongarch_cpu_strings[la_target.cpu_tune]);
 
   obstack_1grow (&opts_obstack, '\0');
 
-  char* normalized_opts = (char*) obstack_finish (&opts_obstack);
-  return normalized_opts;
+  return XOBFINISH (&opts_obstack, const char *);
 }

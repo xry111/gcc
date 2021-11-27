@@ -449,8 +449,8 @@ mips*-*-*)
 loongarch*-*-*)
 	cpu_type=loongarch
 	extra_headers="larchintrin.h"
-	extra_objs="loongarch-c.o loongarch-builtins.o loongarch-cpu.o loongarch-opts.o"
-	extra_gcc_objs="loongarch-driver.o loongarch-cpu.o loongarch-opts.o"
+	extra_objs="loongarch-c.o loongarch-builtins.o loongarch-cpu.o loongarch-opts.o loongarch-def.o"
+	extra_gcc_objs="loongarch-driver.o loongarch-cpu.o loongarch-opts.o loongarch-def.o"
 	extra_options="${extra_options} g.opt fused-madd.opt"
 	;;
 nds32*)
@@ -2499,67 +2499,7 @@ riscv*-*-freebsd*)
 	gcc_cv_initfini_array=yes
 	;;
 
-loongarch*-linux*)
-	# Inferring ${with_} options from the triplet.
-	case ${target} in
-	loongarch64nf-*)
-		with_arch_triplet=loongarch64
-		with_abi_triplet=lp64
-		with_float_triplet=soft
-		;;
-	loongarch64sf-*)
-		with_arch_triplet=loongarch64
-		with_abi_triplet=lp64
-		with_float_triplet=single
-		;;
-	loongarch64-*)
-		with_arch_triplet=loongarch64
-		with_abi_triplet=lp64
-		with_float_triplet="*"
-		;;
-	*)
-		echo "Unsupported target ${target}." 1>&2
-		exit 1
-	esac
-
-	# Setting default value for with_arch.
-	if test x${with_arch} == x; then
-		with_arch=${with_arch_triplet}
-	fi
-
-	# Check and set --with- options according to the triplet.
-	case ${with_abi} in
-	"")
-		with_abi=${with_abi_triplet}
-		;;
-
-	${with_abi_triplet}) ;; # OK
-	*)
-		echo "Incompatible options:" \
-		"--with-abi=${with_abi} and --target=${target}." 1>&2
-		exit 1
-		;;
-	esac
-
-	case ${with_float} in
-	"")
-		if test x${with_float_triplet} == x*; then
-			case ${target} in
-			loongarch64-*) with_float_triplet=double ;;
-			esac
-		fi
-
-		with_float=${with_float_triplet}
-		;;
-
-	${with_float_triplet}) ;; # OK
-	*)
-		echo "Incompatible options:" \
-		"--with-float=${with_float} and --target=${target}." 1>&2
-		exit 1
-		;;
-	esac
-
+loongarch*-*-linux-gnu*)
 	tm_file="dbxelf.h elfos.h gnu-user.h linux.h linux-android.h glibc-stdint.h ${tm_file}"
 	tm_file="${tm_file} loongarch/gnu-user.h loongarch/linux.h"
 	extra_options="${extra_options} linux-android.opt"
@@ -4961,11 +4901,213 @@ case "${target}" in
 		;;
 
 	loongarch*-*-*)
-		supported_defaults="abi arch float"
+		supported_defaults="abi arch tune fpu"
+
+		# Local variables
+		unset \
+			abi_pattern      abi_default    \
+			abiext_pattern   abiext_default \
+			arch_pattern     arch_default   \
+			fpu_pattern      fpu_default    \
+			tune_pattern     tune_default
+
+		# Inferring ABI from the triplet: pass 1
+		case ${target} in
+		loongarch64-*)
+			abiext_pattern="*"
+			abiext_default="base"
+			;;
+		esac
+
+		# Inferring ABI from the triplet: pass 2
+		case ${target} in
+		loongarch64-*-linux-gnuf64)
+			la_canonical_triplet="loongarch64-linux-gnuf64"
+			abi_pattern="lp64d"
+			;;
+		loongarch64-*-linux-gnuf32)
+			la_canonical_triplet="loongarch64-linux-gnuf32"
+			abi_pattern="lp64f"
+			;;
+		loongarch64-*-linux-gnusf)
+			la_canonical_triplet="loongarch64-linux-gnusf"
+			abi_pattern="lp64s"
+			;;
+		loongarch64-*-linux-gnu)
+			la_canonical_triplet="loongarch64-linux-gnuf64"
+			abi_pattern="lp64[dfs]"
+			abi_default="lp64d"
+			;;
+		*)
+			echo "Unsupported target ${target}." 1>&2
+			exit 1
+		esac
+
+		## Setting default value for with_abi.
+		case ${with_abi} in
+		"")
+			if test x${abi_default} != x; then
+				with_abi=${abi_default}
+			else
+				with_abi=${abi_pattern}
+			fi
+			;;
+
+		*)
+			if echo "${with_abi}" | grep -E "^${abi_pattern}$"; then
+				: # OK
+			else
+				echo "Incompatible options:" \
+				"--with-abi=${with_abi} and --target=${target}." 1>&2
+				exit 1
+			fi
+			;;
+		esac
+
+		## Setting default value for with_abiext (internal)
+		case ${with_abiext} in
+		"")
+			if test x${abiext_default} != x; then
+				with_abiext=${abiext_default}
+			else
+				with_abiext=${abiext_pattern}
+			fi
+			;;
+
+		*)
+			if echo "${with_abiext}" | grep -E "^${abiext_pattern}$"; then
+				: # OK
+			else
+				echo "The ABI extension type \"${with_abiext}\"" \
+				"is incompatible with --target=${target}." 1>&2
+				exit 1
+			fi
+
+			;;
+		esac
+
+
+		# Inferring ISA-related default options from the ABI: pass 1
+		case ${with_abi}/${with_abiext} in
+		lp64*/base)
+			# architectures that support lp64* ABI
+			arch_pattern="native|loongarch64|la464"
+			# default architecture for lp64* ABI
+			arch_default="loongarch64"
+			;;
+		*)
+			echo "Unsupported ABI type ${with_abi}/${with_abiext}." 1>&2
+			exit 1
+			;;
+		esac
+
+		# Inferring ISA-related default options from the ABI: pass 2
+		case ${with_abi}/${with_abiext} in
+		lp64d/base)
+			fpu_pattern="64"
+			;;
+		lp64f/base)
+			fpu_pattern="32|64"
+			fpu_default="32"
+			;;
+		lp64s/base)
+			fpu_pattern="none|32|64"
+			fpu_default="none"
+			;;
+		*)
+			echo "Unsupported ABI type ${with_abi}/${with_abiext}." 1>&2
+			exit 1
+			;;
+		esac
+
+		## Setting default value for with_arch.
+		case ${with_arch} in
+		"")
+			if test x${arch_default} != x; then
+				with_arch=${arch_default}
+			else
+				with_arch=${arch_pattern}
+			fi
+			;;
+
+		*)
+			if echo "${with_arch}" | grep -E "^${arch_pattern}$"; then
+				: # OK
+			else
+				echo "${with_abi}/${with_abiext} ABI cannot be implemented with" \
+				"--with-arch=${with_arch}." 1>&2
+				exit 1
+			fi
+			;;
+		esac
+
+		## Setting default value for with_fpu.
+		if test x${with_fpu} == xnone; then
+			with_fpu="0"
+		fi
+
+		case ${with_fpu} in
+		"")
+			if test x${fpu_default} != x; then
+				with_fpu=${fpu_default}
+			else
+				with_fpu=${fpu_pattern}
+			fi
+			;;
+
+		*)
+			if echo "${with_fpu}" | grep -E "^${fpu_pattern}$"; then
+				: # OK
+			else
+				echo "${with_abi}/${with_abiext} ABI cannot be implemented with" \
+				"--with-fpu=${with_fpu}." 1>&2
+				exit 1
+			fi
+			;;
+		esac
+
+
+		# Inferring default with_tune from with_arch: pass 1
+		case ${with_arch} in
+		native)
+			tune_pattern="*"
+			tune_default="native"
+			;;
+		loongarch64)
+			tune_pattern="loongarch64 | la464"
+			tune_default="la464"
+			;;
+		*)
+			# By default, $with_tune == $with_arch
+			tune_pattern="$with_arch"
+			;;
+		esac
+
+		## Setting default value for with_tune.
+		case ${with_tune} in
+		"")
+			if test x${tune_default} != x; then
+				with_tune=${tune_default}
+			else
+				with_tune=${tune_pattern}
+			fi
+			;;
+
+		*)
+			if echo "${with_tune}" | grep -E "^${tune_pattern}$"; then
+				: # OK
+			else
+				echo "Incompatible options: --with-tune=${with_tune}" \
+				"and --with-arch=${with_arch}." 1>&2
+				exit 1
+			fi
+			;;
+		esac
+
 
 		# Perform final sanity checks.
 		case ${with_arch} in
-		loongarch64 | la464) ;; # OK
+		loongarch64 | la464) ;; # OK, append here.
 		native)
 			if test x${host} != x${target}; then
 				echo "--with-arch=native is illegal for cross-compiler." 1>&2
@@ -4974,7 +5116,7 @@ case "${target}" in
 			;;
 		"")
 			echo "Please set a default value for \${with_arch}" \
-			     "according to the target triplet \"${target}\"." 1>&2
+			     "according to your target triplet \"${target}\"." 1>&2
 			exit 1
 			;;
 		*)
@@ -4984,110 +5126,110 @@ case "${target}" in
 		esac
 
 		case ${with_abi} in
-		"" | lp64) ;; # OK, append here.
+		lp64d | lp64f | lp64s) ;; # OK, append here.
 		*)
-			echo "Unknown ABI given in --with-abi=$with_abi" 1>&2
+			echo "Unsupported ABI given in --with-abi=$with_abi" 1>&2
 			exit 1
 			;;
 		esac
 
-		case ${with_float} in
-		"" | soft | single | double)  ;;   # OK, append here.
-		none)  with_float=soft   ;;
+		case ${with_abiext} in
+		base) ;; # OK, append here.
 		*)
-			echo "Unknown fpu type used in --with-fpu=$with_fpu" 1>&2
+			echo "Unsupported ABI extention type $with_abiext" 1>&2
+			exit 1
+			;;
+		esac
+
+		case ${with_fpu} in
+		none | 32 | 64) ;; # OK, append here.
+		*)
+			echo "Unknown fpu type in --with-fpu=$with_fpu" 1>&2
 			exit 1
 			;;
 		esac
 
 		# Handle --with-multilib-list.
-		if test x$enable_multilib == xyes; then
-			# Handle --with-multilib-list=default.
-			if test x${with_multilib_list} == xdefault; then
-				if test x${with_abi} != x && test x${with_float} != x; then
-					with_multilib_list="${with_abi}/${with_float}"
-				else
-					echo "Cannot handle --with-multilib-list=default" \
-					"if the default int/fp ABI is not configured." 1>&2
-					exit 1
-				fi
-			fi
+		if test x${with_multilib_list} == x \
+		   || test x${with_multilib_list} == xno \
+		   || test x${with_multilib_list} == xdefault \
+		   || test x${enable_multilib} != xyes; then
 
-			# Check if the configured default ABI combination is included in
-			# ${with_multilib_list}.
-			if test x${with_abi} == x || test x${with_float} == x; then
-				loongarch_multilib_list_sane=yes
-			else
-				loongarch_multilib_list_sane=no
-			fi
-
-			# This one goes to TM_MULTILIB_CONFIG, for use in t-linux.
-			loongarch_multilib_list_make=""
-
-			# This one goes to tm_defines, for use in loongarch-driver.c.
-			loongarch_multilib_list_c=""
-
-			for e in $(tr ',' ' ' <<< "${with_multilib_list}"); do
-				e=($(tr '/' ' ' <<< "$e"))
-
-				# Integer ABI
-				case ${e[0]} in
-				lp64)  # OK
-					loongarch_multilib_list_make+="mabi=${e[0]}"
-					loongarch_multilib_list_c+="@${e[0]}"
-					;;
-				*)
-					echo "Unknown ABI \"${e[0]}\" in --with-multilib-list." 1>&2
-					exit 1
-					;;
-				esac
-
-				# Floating-Point ABI
-				case ${e[1]} in
-				soft | single) # OK
-					loongarch_multilib_list_make+="/mfloat-abi=${e[1]}"
-					loongarch_multilib_list_c+="/${e[1]}"
-					;;
-
-				"" | double)
-					loongarch_multilib_list_make+=""
-					loongarch_multilib_list_c+="/double"
-					;;
-				*)
-					echo "Unknown floating-point ABI \"${e[1]}\" in --with-multilib-list." 1>&2
-					exit 1
-					;;
-				esac
-
-				case ${e[2]} in
-				"") ;; # OK
-				*)
-					echo "Unknown combination detected in --with-multilib-list." 1>&2
-					exit 1
-					;;
-				esac
-
-				if test x${with_abi} != x && test x${with_float} != x; then
-					if test x${e[0]} == x${with_abi} \
-					&& test x${e[1]} == x${with_float}; then
-						loongarch_multilib_list_sane=yes
-					fi
-				fi
-
-				loongarch_multilib_list_make+=","
-				loongarch_multilib_list_c+="@"
-			done
-
-			# Check if the default ABI combination is in the default list.
-			if test x${loongarch_multilib_list_sane} == xno; then
-				echo "Default ABI combination (${with_abi}/${with_float})" \
-				"not found in --with-multilib-list." 1>&2
-				exit 1
-			fi
-
-			# Remove the excessive appending comma.
-			loongarch_multilib_list_make=${loongarch_multilib_list_make:0:-1}
+			with_multilib_list="${with_abi}/${with_abiext}"
 		fi
+
+		# Check if the configured default ABI combination is included in
+		# ${with_multilib_list}.
+		loongarch_multilib_list_sane=no
+
+		# This one goes to TM_MULTILIB_CONFIG, for use in t-linux.
+		loongarch_multilib_list_make=""
+
+		# This one goes to tm_defines, for use in loongarch-driver.c.
+		loongarch_multilib_list_c=""
+
+		for e in $(tr ',' ' ' <<< "${with_multilib_list}"); do
+			e=($(tr '/' ' ' <<< "$e"))
+
+			# Base ABI type
+			case ${e[0]} in
+			lp64d) loongarch_multilib_list_c+="ABI_BASE_LP64D,";;
+			lp64f) loongarch_multilib_list_c+="ABI_BASE_LP64F,";;
+			lp64s) loongarch_multilib_list_c+="ABI_BASE_LP64S,";;
+			*)
+				echo "Unknown base ABI \"${e[0]}\" in --with-multilib-list." 1>&2
+				exit 1
+				;;
+			esac
+			loongarch_multilib_list_make+="mabi=${e[0]}"
+
+			# ABI extension type
+			case ${e[1]} in
+			"" | base)
+				loongarch_multilib_list_make+=""
+				loongarch_multilib_list_c+="ABI_EXT_BASE,"
+				e[1]="base"
+				;;
+			*)
+				echo "Unknown ABI extension \"${e[1]}\" in --with-multilib-list." 1>&2
+				exit 1
+				;;
+			esac
+
+			case ${e[2]} in
+			"") ;; # OK
+			*)
+				echo "Unknown ABI in --with-multilib-list." 1>&2
+				exit 1
+				;;
+			esac
+
+			if test x${with_abi} != x && test x${with_abiext} != x; then
+				if test x${e[0]} == x${with_abi} \
+				&& test x${e[1]} == x${with_abiext}; then
+					loongarch_multilib_list_sane=yes
+				fi
+			fi
+
+			loongarch_multilib_list_make+=","
+		done
+
+		# Check if the default ABI combination is in the default list.
+		if test x${loongarch_multilib_list_sane} == xno; then
+			if test x${with_abiext} == xbase; then
+				with_abiext=""
+			else
+				with_abiext="/${with_abiext}"
+			fi
+
+			echo "Default ABI combination (${with_abi}${with_abiext})" \
+			"not found in --with-multilib-list." 1>&2
+			exit 1
+		fi
+
+		# Remove the excessive appending comma.
+		loongarch_multilib_list_c=${loongarch_multilib_list_c:0:-1}
+		loongarch_multilib_list_make=${loongarch_multilib_list_make:0:-1}
 		;;
 
 	nds32*-*-*)
@@ -5538,45 +5680,45 @@ case ${target} in
 		;;
 
 	loongarch*-*-*)
-		# Defining macro __DISABLE_MULTILIB if --disable-multilib
+		# Export canonical triplet.
+		tm_defines+=" LA_MULTIARCH_TRIPLET=${la_canonical_triplet}"
+
+		# Define macro __DISABLE_MULTILIB if --disable-multilib
+		tm_defines+=" TM_MULTILIB_LIST=${loongarch_multilib_list_c}"
 		if test x$enable_multilib == xyes; then
 			TM_MULTILIB_CONFIG="${loongarch_multilib_list_make}"
-			tm_defines="$tm_defines TM_MULTILIB_LIST=\"\\\"${loongarch_multilib_list_c}\\\"\""
 		else
-			tm_defines="$tm_defines __DISABLE_MULTILIB"
+			tm_defines+=" __DISABLE_MULTILIB"
 		fi
 
 		# Let --with- flags initialize the enum variables from loongarch.opt.
-
-		# Processor default config goes first, its settings
-		# may be overriden by more detailed --with- options below.
+		# See macro definitions from loongarch-opts.h and loongarch-cpu.h.
 		case ${with_arch} in
-		native)
-			tm_defines="$tm_defines DEFAULT_CPU_ARCH=CPU_NATIVE"
-			;;
-		la464)
-			tm_defines="$tm_defines DEFAULT_CPU_ARCH=CPU_LA464"
-			;;
-		loongarch64)
-			tm_defines="$tm_defines DEFAULT_CPU_ARCH=CPU_LOONGARCH64"
-			;;
+		native)		tm_defines+=" DEFAULT_CPU_ARCH=CPU_NATIVE" ;;
+		la464)		tm_defines+=" DEFAULT_CPU_ARCH=CPU_LA464" ;;
+		loongarch64)	tm_defines+=" DEFAULT_CPU_ARCH=CPU_LOONGARCH64" ;;
 		esac
 
-		# See macro definitions from loongarch/loongarch-opts.h
+		case ${with_tune} in
+		native)		tm_defines+=" DEFAULT_CPU_TUNE=CPU_NATIVE" ;;
+		la464)		tm_defines+=" DEFAULT_CPU_TUNE=CPU_LA464" ;;
+		loongarch64)	tm_defines+=" DEFAULT_CPU_TUNE=CPU_LOONGARCH64" ;;
+		esac
+
 		case ${with_abi} in
-		lp64)   tm_defines="$tm_defines DEFAULT_ABI_INT=ABI_LP64" ;;
+		lp64d)     tm_defines+=" DEFAULT_ABI_BASE=ABI_BASE_LP64D" ;;
+		lp64f)     tm_defines+=" DEFAULT_ABI_BASE=ABI_BASE_LP64F" ;;
+		lp64s)     tm_defines+=" DEFAULT_ABI_BASE=ABI_BASE_LP64S" ;;
 		esac
 
-		case ${with_float} in
-		none)
-			tm_defines="$tm_defines DEFAULT_ABI_FLOAT=ABI_SOFT_FLOAT   DEFAULT_ISA_FLOAT=ISA_SOFT_FLOAT"
-			;;
-		single)
-			tm_defines="$tm_defines DEFAULT_ABI_FLOAT=ABI_SINGLE_FLOAT DEFAULT_ISA_FLOAT=ISA_SINGLE_FLOAT"
-			;;
-		double)
-			tm_defines="$tm_defines DEFAULT_ABI_FLOAT=ABI_DOUBLE_FLOAT DEFAULT_ISA_FLOAT=ISA_DOUBLE_FLOAT"
-			;;
+		case ${with_abiext} in
+		base)      tm_defines+=" DEFAULT_ABI_EXT=ABI_EXT_BASE" ;;
+		esac
+
+		case ${with_fpu} in
+		none)    tm_defines="$tm_defines DEFAULT_ISA_EXT_FPU=ISA_EXT_NOFPU" ;;
+		32)      tm_defines="$tm_defines DEFAULT_ISA_EXT_FPU=ISA_EXT_FPU32" ;;
+		64)      tm_defines="$tm_defines DEFAULT_ISA_EXT_FPU=ISA_EXT_FPU64" ;;
 		esac
 
 		tmake_file="loongarch/t-loongarch $tmake_file"

@@ -21,113 +21,70 @@ along with GCC; see the file COPYING3.  If not see
 #ifndef LOONGARCH_OPTS_H
 #define LOONGARCH_OPTS_H
 
-/* Enum value definitions for various ABI/ISA options,
-   these values are not used directly. (see loongarch.opt) */
 
-/* enum loongarch_isa_int */
-#define ISA_LA64	0
-#define N_INT_ISA_TYPES	1
+/* Target configuration */
+extern struct loongarch_target la_target;
 
+/* Switch masks */
+extern const int loongarch_switch_mask[];
 
-/* enum loongarch_isa_float */
-#define ISA_SOFT_FLOAT	  0
-#define ISA_SINGLE_FLOAT  1
-#define ISA_DOUBLE_FLOAT  2
-#define N_FLOAT_ISA_TYPES 3
+#ifdef IN_LIBGCC2
+#include "loongarch-def.h"
+#else
+extern "C" {
+#include "loongarch-def.h"
+}
 
-/* enum loongarch_abi_int */
-#define ABI_LP64	0
-#define N_INT_ABI_TYPES	1
-
-/* enum loongarch_abi_float */
-#define ABI_SOFT_FLOAT	  0
-#define ABI_SINGLE_FLOAT  1
-#define ABI_DOUBLE_FLOAT  2
-#define N_FLOAT_ABI_TYPES 3
-
-extern const char* loongarch_isa_int_strings[];
-extern const char* loongarch_isa_float_strings[];
-extern const char* loongarch_abi_int_strings[];
-extern const char* loongarch_abi_float_strings[];
-
-/* "Option not encountered" common default value (for computing override) */
-#define M_OPTION_NOT_SEEN -1
-#define LARCH_OPT_ABSENT(opt_enum)  ((opt_enum) == M_OPTION_NOT_SEEN)
-
-/* CPU properties */
-#include "loongarch-cpu.h"
-
-/* "Default-default" init values for ABI/ISA option enum variables,
-   optionally overridden by config.gcc and "--with" config
-   options via "tm_defines".  */
-
-#ifndef DEFAULT_CPU_ARCH
-#define DEFAULT_CPU_ARCH CPU_LOONGARCH64
-#endif
-
-#ifndef DEFAULT_ISA_INT
-#define DEFAULT_ISA_INT M_OPTION_NOT_SEEN
-#endif
-
-#ifndef DEFAULT_ISA_FLOAT
-#define DEFAULT_ISA_FLOAT M_OPTION_NOT_SEEN
-#endif
-
-#ifndef DEFAULT_ABI_INT
-#define DEFAULT_ABI_INT M_OPTION_NOT_SEEN
-#endif
-
-#ifndef DEFAULT_ABI_FLOAT
-#define DEFAULT_ABI_FLOAT M_OPTION_NOT_SEEN
-
-#endif
-
-#ifndef IN_LIBGCC2
 /* Handler for "-m" option combinations,
-   shared by the driver and the compiler proper.
-*/
+   shared by the driver and the compiler proper.  */
 void
-loongarch_handle_m_option_combinations (
-  int* cpu_arch, int* cpu_tune, int* isa_int, int* isa_float,
-  int* abi_int, int* abi_float, int* native_cpu_type);
+loongarch_config_target (struct loongarch_target *target,
+  HOST_WIDE_INT opt_switches,
+  int opt_arch, int opt_tune, int opt_fpu,
+  int opt_abi_base, int opt_abi_ext,
+  int opt_cmodel, int follow_multilib_list);
 #endif
 
 
-/* Enum value definitions for loongarch code models.  */
-#define CMODEL_NORMAL		  0
-#define CMODEL_TINY		  1
-#define CMODEL_TINY_STATIC	  2
-#define CMODEL_LARGE		  3
-#define CMODEL_EXTREME		  4
+/* Macros for common conditional expressions used in loongarch.{c,h,md} */
+#define TARGET_CMODEL_NORMAL	    (la_target.cmodel == CMODEL_NORMAL)
+#define TARGET_CMODEL_TINY	    (la_target.cmodel == CMODEL_TINY)
+#define TARGET_CMODEL_TINY_STATIC   (la_target.cmodel == CMODEL_TINY_STATIC)
+#define TARGET_CMODEL_LARGE	    (la_target.cmodel == CMODEL_LARGE)
+#define TARGET_CMODEL_EXTREME	    (la_target.cmodel == CMODEL_EXTREME)
 
+#define TARGET_HARD_FLOAT	    (la_target.isa.fpu != ISA_EXT_NOFPU)
+#define TARGET_HARD_FLOAT_ABI	    (la_target.abi.base == ABI_BASE_LP64D \
+				     || la_target.abi.base == ABI_BASE_LP64F)
 
-/* Macros for common conditional expressions used in loongarch.{c,md} */
-#define TARGET_CMODEL_NORMAL	  (loongarch_cmodel_var == CMODEL_NORMAL)
-#define TARGET_CMODEL_TINY	  (loongarch_cmodel_var == CMODEL_TINY)
-#define TARGET_CMODEL_TINY_STATIC (loongarch_cmodel_var == CMODEL_TINY_STATIC)
-#define TARGET_CMODEL_LARGE	  (loongarch_cmodel_var == CMODEL_LARGE)
-#define TARGET_CMODEL_EXTREME	  (loongarch_cmodel_var == CMODEL_EXTREME)
+#define TARGET_SOFT_FLOAT	  (la_target.isa.fpu == ISA_EXT_NOFPU)
+#define TARGET_SOFT_FLOAT_ABI	  (la_target.abi.base == ABI_BASE_LP64S)
+#define TARGET_SINGLE_FLOAT	  (la_target.isa.fpu == ISA_EXT_FPU32)
+#define TARGET_SINGLE_FLOAT_ABI	  (la_target.abi.base == ABI_BASE_LP64F)
+#define TARGET_DOUBLE_FLOAT	  (la_target.isa.fpu == ISA_EXT_FPU64)
+#define TARGET_DOUBLE_FLOAT_ABI	  (la_target.abi.base == ABI_BASE_LP64D)
 
+#define TARGET_64BIT		  (la_target.isa.base == ISA_BASE_LA64V100)
+#define TARGET_ABI_LP64		  (la_target.abi.base == ABI_BASE_LP64D \
+				   || la_target.abi.base == ABI_BASE_LP64F \
+				   || la_target.abi.base == ABI_BASE_LP64S)
 
-/* Legacy conditional expression macros (TODO: cleanup) */
-#define TARGET_HARD_FLOAT	  (loongarch_isa_float != ISA_SOFT_FLOAT)
-#define TARGET_HARD_FLOAT_ABI	  (loongarch_abi_float != ABI_SOFT_FLOAT)
-#define TARGET_SOFT_FLOAT	  (loongarch_isa_float == ISA_SOFT_FLOAT)
-#define TARGET_SOFT_FLOAT_ABI	  (loongarch_abi_float == ABI_SOFT_FLOAT)
-#define TARGET_SINGLE_FLOAT	  (loongarch_isa_float == ISA_SINGLE_FLOAT)
-#define TARGET_SINGLE_FLOAT_ABI	  (loongarch_abi_float == ABI_SINGLE_FLOAT)
-#define TARGET_DOUBLE_FLOAT	  (loongarch_isa_float == ISA_DOUBLE_FLOAT)
-#define TARGET_DOUBLE_FLOAT_ABI	  (loongarch_abi_float == ABI_DOUBLE_FLOAT)
+#define TARGET_ARCH_NATIVE	  (la_target.cpu_arch == CPU_NATIVE)
+#define __ACTUAL_ARCH		  (TARGET_ARCH_NATIVE \
+				   ? (la_target.cpu_native < N_ARCH_TYPES \
+				      ? (la_target.cpu_native) : (CPU_NATIVE)) \
+				      : (la_target.cpu_arch))
 
-#define TARGET_ABI_LP64		(loongarch_abi_int == ABI_LP64)
-#define TARGET_64BIT		(loongarch_isa_int == ISA_LA64)
+#define TARGET_TUNE_NATIVE	(la_target.cpu_tune == CPU_NATIVE)
+#define __ACTUAL_TUNE		(TARGET_TUNE_NATIVE \
+				 ? (la_target.cpu_native < N_TUNE_TYPES \
+				    ? (la_target.cpu_native) : (CPU_NATIVE)) \
+				    : (la_target.cpu_tune))
 
-#define TARGET_ARCH_NATIVE	    (loongarch_cpu_arch == CPU_NATIVE)
-#define TARGET_ARCH_LOONGARCH64	    (loongarch_cpu_arch == CPU_LOONGARCH64)
-#define TARGET_ARCH_LA464	    (loongarch_cpu_arch == CPU_LA464)
+#define TARGET_ARCH_LOONGARCH64	  (__ACTUAL_ARCH == CPU_LOONGARCH64)
+#define TARGET_ARCH_LA464	  (__ACTUAL_ARCH == CPU_LA464)
 
-#define TARGET_TUNE_NATIVE	    (loongarch_cpu_tune == CPU_NATIVE)
-#define TARGET_TUNE_LOONGARCH64	    (loongarch_cpu_tune == CPU_LOONGARCH64)
-#define TARGET_TUNE_LA464	    (loongarch_cpu_tune == CPU_LA464)
+#define TARGET_TUNE_LOONGARCH64	  (__ACTUAL_TUNE == CPU_LOONGARCH64)
+#define TARGET_TUNE_LA464	  (__ACTUAL_TUNE == CPU_LA464)
 
 #endif /* LOONGARCH_OPTS_H */

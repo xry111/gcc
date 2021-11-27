@@ -24,20 +24,19 @@ along with GCC; see the file COPYING3.  If not see
 #undef WCHAR_TYPE_SIZE
 #define WCHAR_TYPE_SIZE 32
 
-/* GNU-specific SPEC definitions.  */
-#define GNU_USER_LINK_EMULATION64 "elf64loongarch"
 
-#define GLIBC_DYNAMIC_LINKER_LP64 "/lib64/ld.so.1"
+/* GNU-specific SPEC definitions.  */
+#define GNU_USER_LINK_EMULATION "elf" ABI_GRLEN_SPEC "loongarch"
+
+#define GLIBC_DYNAMIC_LINKER \
+  "/lib" ABI_GRLEN_SPEC "/ld-linux-loongarch-" ABI_SPEC ".so.1"
 
 #undef GNU_USER_TARGET_LINK_SPEC
-#define GNU_USER_TARGET_LINK_SPEC "\
-  %{G*} %{shared} \
-  %{!shared: \
-    %{!static: \
-      %{rdynamic:-export-dynamic} \
-      %{mabi=lp64: -dynamic-linker " GLIBC_DYNAMIC_LINKER_LP64 "}} \
-    %{static}} \
-  %{mabi=lp64:-m" GNU_USER_LINK_EMULATION64 "}"
+#define GNU_USER_TARGET_LINK_SPEC \
+  "%{G*} %{shared} -m " GNU_USER_LINK_EMULATION \
+  "%{!shared: %{static} %{!static: %{rdynamic:-export-dynamic}" \
+  "-dynamic-linker " GLIBC_DYNAMIC_LINKER "}}"
+
 
 /* Similar to standard Linux, but adding -ffast-math support.  */
 #undef GNU_USER_TARGET_MATHFILE_SPEC

@@ -24,288 +24,549 @@ along with GCC; see the file COPYING3.  If not see
 #include "system.h"
 #include "coretypes.h"
 #include "tm.h"
+#include "obstack.h"
 #include "diagnostic-core.h"
 
-#include "loongarch-cpucfg.h"
+#include "loongarch-cpu.h"
 #include "loongarch-opts.h"
+#include "loongarch-str.h"
 
-const char* loongarch_isa_int_strings[] = {
-    /* ISA_LA64 */  "la64",
+struct loongarch_target la_target;
+
+/* ABI-related configuration.  */
+#define ABI_COUNT (sizeof(abi_priority_list)/sizeof(struct loongarch_abi))
+static const struct loongarch_abi
+abi_priority_list[] = {
+    {ABI_BASE_LP64D, ABI_EXT_BASE},
+    {ABI_BASE_LP64F, ABI_EXT_BASE},
+    {ABI_BASE_LP64S, ABI_EXT_BASE},
 };
 
-const char* loongarch_isa_float_strings[] = {
-    /* ISA_SOFT_FLOAT */     "none",
-    /* ISA_SINGLE_FLOAT */   "single",
-    /* ISA_DOUBLE_FLOAT */   "double",
-};
+/* Initialize enabled_abi_types from TM_MULTILIB_LIST.  */
+#ifdef __DISABLE_MULTILIB
+#define MULTILIB_LIST_LEN 1
+#else
+#define MULTILIB_LIST_LEN (sizeof (tm_multilib_list) / sizeof (int) / 2)
+static const int tm_multilib_list[] = { TM_MULTILIB_LIST };
+#endif
+static int enabled_abi_types[N_ABI_BASE_TYPES][N_ABI_EXT_TYPES] = { 0 };
 
-const char* loongarch_abi_int_strings[] = {
-    /* ABI_LP64 */  "lp64",
-};
+#define isa_required(ABI) (abi_minimal_isa[(ABI).base][(ABI).ext])
+extern const struct loongarch_isa
+abi_minimal_isa[N_ABI_BASE_TYPES][N_ABI_EXT_TYPES];
 
-const char* loongarch_abi_float_strings[] = {
-    /* ABI_SOFT_FLOAT */     "soft",
-    /* ABI_SINGLE_FLOAT */   "single",
-    /* ABI_DOUBLE_FLOAT */   "double",
-};
-
-/* Handle combinations of -m machine option values.
-   (see loongarch.opt and loongarch-opts.h) */
-
-void
-loongarch_handle_m_option_combinations (
-  int* cpu_arch, int* cpu_tune, int* isa_int, int* isa_float,
-  int* abi_int, int* abi_float, int* native_cpu_type)
+static inline int
+is_multilib_enabled (struct loongarch_abi abi)
 {
-  /* Rules for handling machine-specific options:
+  return enabled_abi_types[abi.base][abi.ext];
+}
 
-     1.  "-m" options override configure-time default "--with" options,
-     which provides the build-time default value of machine-specific settings.
+static void
+init_enabled_abi_types ()
+{
+#ifdef __DISABLE_MULTILIB
+  enabled_abi_types[DEFAULT_ABI_BASE][DEFAULT_ABI_EXT] = 1;
+#else
+  int abi_base, abi_ext;
+  for (unsigned int i = 0; i < MULTILIB_LIST_LEN; i++)
+    {
+      abi_base = tm_multilib_list[i << 1];
+      abi_ext = tm_multilib_list[(i << 1) + 1];
+      enabled_abi_types[abi_base][abi_ext] = 1;
+    }
+#endif
+}
 
-     2.  The overall goal of handling "-m" options is to obtain a basic
-     set of target ISA/ABI requirements, which consists of five components:
-     | integer ISA | floating-point ISA | LoongArch ISA extensions |
-     | integer ABI | floating-point ABI |
+/* Switch masks.  */
+#undef M
+#define M(NAME) OPTION_MASK_##NAME
+const int loongarch_switch_mask[N_SWITCH_TYPES] = {
+  /* SW_SOFT_FLOAT */    M(FORCE_SOFTF),
+  /* SW_SINGLE_FLOAT */  M(FORCE_F32),
+  /* SW_DOUBLE_FLOAT */  M(FORCE_F64),
+};
+#undef M
 
-     These components may not be combined in arbitrary ways, for example,
-     we can't have LP64 ABI on LA32 instruction set.  They are designed
-     as separate components for flexibility and clearity of backend coding.
+/* String processing.  */
+static struct obstack msg_obstack;
+#define APPEND_STRING(STR) obstack_grow (&msg_obstack, STR, strlen(STR));
+#define APPEND1(CH) obstack_1grow(&msg_obstack, CH);
 
-     Handling of conflicts and overriding between "-m" options
-     given at once is the job of this function.
+static const char* abi_str (struct loongarch_abi abi);
+static const char* isa_str (const struct loongarch_isa *isa, char separator);
+static const char* arch_str (const struct loongarch_target *target);
+static const char* multilib_enabled_abi_list ();
 
-     3.  Aside from its own effects (custom preprocessing macros etc.),
-     "-march=CPU" also implies a basic target ISA/ABI set
-     and "-mtune=CPU", which can be overridden by other "-m" options.
+/* Misc */
+static struct loongarch_abi isa_default_abi (const struct loongarch_isa *isa);
+static int isa_base_compat_p (const struct loongarch_isa *set1,
+			      const struct loongarch_isa *set2);
+static int isa_fpu_compat_p (const struct loongarch_isa *set1,
+			     const struct loongarch_isa *set2);
+static int abi_compat_p (const struct loongarch_isa *isa,
+			 struct loongarch_abi abi);
+static int abi_default_cpu_arch (struct loongarch_abi abi);
 
-     4.  For now, floating-point ISA decides the fp ABI.  */
+/* Checking configure-time defaults.  */
+#ifndef DEFAULT_ABI_BASE
+#error missing definition of DEFAULT_ABI_BASE in ${tm_defines}.
+#endif
 
-  /* 1.  Compute march / mtune.  */
-  int cpu_arch_was_absent = LARCH_OPT_ABSENT (*cpu_arch);
+#ifndef DEFAULT_ABI_EXT
+#error missing definition of DEFAULT_ABI_EXT in ${tm_defines}.
+#endif
 
-  if (LARCH_OPT_ABSENT (*cpu_arch))
-    /* Using configure-time default.  */
-    *cpu_arch = DEFAULT_CPU_ARCH;
+#ifndef DEFAULT_CPU_ARCH
+#error missing definition of DEFAULT_CPU_ARCH in ${tm_defines}.
+#endif
 
-  if (LARCH_OPT_ABSENT (*cpu_tune))
-    /* Try inferring -mtune from -march.  */
-    *cpu_tune = *cpu_arch;
+#ifndef DEFAULT_ISA_EXT_FPU
+#error missing definition of DEFAULT_ISA_EXT_FPU in ${tm_defines}.
+#endif
 
+/* Handle combinations of -m machine option values
+   (see loongarch.opt and loongarch-opts.h).  */
+void
+loongarch_config_target (struct loongarch_target *target,
+			 HOST_WIDE_INT opt_switches,
+			 int opt_arch, int opt_tune, int opt_fpu,
+			 int opt_abi_base, int opt_abi_ext,
+			 int opt_cmodel, int follow_multilib_list)
+{
+  struct loongarch_target t;
+
+  if (!target)
+    return;
+
+  /* Initialization */
+  init_enabled_abi_types ();
+  obstack_init (&msg_obstack);
+
+  struct {
+    int arch, tune, fpu, abi_base, abi_ext, cmodel;
+  } constrained = {
+      M_OPT_ABSENT(opt_arch)     ? 0 : 1,
+      M_OPT_ABSENT(opt_tune)     ? 0 : 1,
+      M_OPT_ABSENT(opt_fpu)      ? 0 : 1,
+      M_OPT_ABSENT(opt_abi_base) ? 0 : 1,
+      M_OPT_ABSENT(opt_abi_ext)  ? 0 : 1,
+      M_OPT_ABSENT(opt_cmodel)   ? 0 : 1,
+  };
+
+#define on(NAME) ((loongarch_switch_mask[(SW_##NAME)] & opt_switches) \
+		  && (on_switch = (SW_##NAME), 1))
+  int on_switch;
+
+  /* 1.  Target ABI */
+  t.abi.base = constrained.abi_base ? opt_abi_base : DEFAULT_ABI_BASE;
+
+  t.abi.ext = constrained.abi_ext ? opt_abi_ext : DEFAULT_ABI_EXT;
+
+  /* Extra switch handling.  */
+  if (on (SOFT_FLOAT) || on (SINGLE_FLOAT) || on (DOUBLE_FLOAT))
+    {
+      switch (on_switch)
+	{
+	  case SW_SOFT_FLOAT:
+	    opt_fpu = ISA_EXT_NOFPU;
+	    break;
+
+	  case SW_SINGLE_FLOAT:
+	    opt_fpu = ISA_EXT_FPU32;
+	    break;
+
+	  case SW_DOUBLE_FLOAT:
+	    opt_fpu = ISA_EXT_FPU64;
+	    break;
+
+	  default:
+	    gcc_unreachable();
+	}
+      constrained.fpu = 1;
+
+      /* The target ISA is not ready yet, but (isa_required (t.abi)
+	 + forced fpu) is enough for computing the forced base ABI.  */
+      struct loongarch_isa force_isa = isa_required (t.abi);
+      struct loongarch_abi force_abi = t.abi;
+      force_isa.fpu = opt_fpu;
+      force_abi.base = isa_default_abi (&force_isa).base;
+
+      if (isa_fpu_compat_p (&(t.isa), &(force_isa)));
+	/* keep quiet */
+      else if (constrained.abi_base && (t.abi.base != force_abi.base))
+	inform (UNKNOWN_LOCATION,
+		"%<-m%s%> overrides %<-m" OPTSTR_ABI_BASE "=%s%>",
+		loongarch_switch_strings[on_switch],
+		loongarch_abi_base_strings[t.abi.base]);
+
+      t.abi.base = force_abi.base;
+    }
+
+#ifdef __DISABLE_MULTILIB
+  if (follow_multilib_list)
+    if (t.abi.base != DEFAULT_ABI_BASE || t.abi.ext != DEFAULT_ABI_EXT)
+      {
+	static const struct loongarch_abi default_abi
+	  = {DEFAULT_ABI_BASE, DEFAULT_ABI_EXT};
+
+	warning (0, "ABI changed (%qs -> %qs) while multilib is disabled",
+		 abi_str (default_abi), abi_str (t.abi));
+      }
+#endif
+
+  /* 2.  Target CPU */
+  t.cpu_arch = constrained.arch ? opt_arch : DEFAULT_CPU_ARCH;
+
+  t.cpu_tune = constrained.tune ? opt_tune
+    : (constrained.arch ? DEFAULT_CPU_ARCH : DEFAULT_CPU_TUNE);
 
 #ifdef __loongarch__
   /* For native compilers, gather local CPU information
      and fill the "CPU_NATIVE" index of arrays defined in
-     cpu/loongarch-cpu.c.  */
+     loongarch-cpu.c.  */
 
-  cache_cpucfg ();
-
-  int cpu_detected = fill_native_cpu_config ();
-  if (cpu_detected == -1)
-    {
-      error ("unknown processor ID %<0x%x%> detected, do not use %qs",
-	     get_native_prid (), "-march=native");
-
-      if (native_cpu_type != NULL)
-	*native_cpu_type = M_OPTION_NOT_SEEN;
-    }
-
-  else if (native_cpu_type != NULL)
-    /* Record detected PRID in *native_cpu_type */
-    *native_cpu_type = cpu_detected;
+  t.cpu_native = fill_native_cpu_config (t.cpu_arch == CPU_NATIVE,
+					 t.cpu_tune == CPU_NATIVE);
 
 #else
-  if (*cpu_arch == CPU_NATIVE)
-    {
-      *cpu_arch = DEFAULT_CPU_ARCH;
-      error ("%<-march=%s%> does not work on a cross compiler.",
-	     loongarch_cpu_strings[CPU_NATIVE]);
-    }
+  if (t.cpu_arch == CPU_NATIVE)
+    fatal_error (UNKNOWN_LOCATION,
+		 "%<-m" OPTSTR_ARCH "=" STR_CPU_NATIVE "%> "
+		 "does not work on a cross compiler");
 
-  else if (*cpu_tune == CPU_NATIVE)
-    {
-      *cpu_tune = DEFAULT_CPU_ARCH;
-      error ("%<-mtune=%s%> does not work on a cross compiler.",
-	     loongarch_cpu_strings[CPU_NATIVE]);
-    }
-
-  if (native_cpu_type != NULL)
-    *native_cpu_type = *cpu_arch;
+  else if (t.cpu_tune == CPU_NATIVE)
+    fatal_error (UNKNOWN_LOCATION,
+		 "%<-m" OPTSTR_TUNE "=" STR_CPU_NATIVE "%> "
+		 "does not work on a cross compiler");
 #endif
 
+  /* 3.  Target ISA */
+config_target_isa:
 
-  /* 2.  Compute ISA Extensions.  */
+  /* Get default ISA from "-march" or its default value.  */
+  t.isa = loongarch_cpu_default_isa[__ACTUAL_ARCH];
 
-#define SET_EXT_FLAG(name)					\
-  if (ext_##name != NULL)					\
-  if (LARCH_OPT_ABSENT (*ext_##name))				\
-    {								\
-      if (!LARCH_OPT_ABSENT (DEFAULT_EXT_##name))		\
-	*ext_##name = DEFAULT_EXT_##name ;			\
-      else							\
-	*ext_##name						\
-	  = loongarch_cpu_default_config[*cpu_arch].ext.name ;	\
-    }
+  /* Apply incremental changes.  */
+  /* "-march=native" overrides the default FPU type.  */
+  t.isa.fpu = constrained.fpu ? opt_fpu :
+    ((t.cpu_arch == CPU_NATIVE && constrained.arch) ?
+     t.isa.fpu : DEFAULT_ISA_EXT_FPU);
 
 
-  /* 3.  Compute integer ISA.  */
-  int int_isa_was_absent = 0;
-  if (LARCH_OPT_ABSENT (*isa_int))
+  /* 4.  ABI-ISA compatibility */
+  /* Note:
+     - There IS a unique default -march value for each ABI type
+       (config.gcc: triplet -> abi -> default arch).
+
+     - If the base ABI is incompatible with the default arch,
+       try using the default -march it implies (and mark it
+       as "constrained" this time), then re-apply step 3.
+  */
+  struct loongarch_abi abi_tmp;
+  const struct loongarch_isa* isa_min;
+  struct loongarch_isa isa_tmp;
+
+  abi_tmp = t.abi;
+  isa_min = &(isa_required (abi_tmp));
+  isa_tmp = t.isa;
+
+  if (isa_base_compat_p (&isa_tmp, isa_min)); /* OK */
+  else if (!constrained.arch)
     {
-      int_isa_was_absent = 1;
+      /* Base architecture can only be implied by -march,
+	 so we adjust that first if it is not constrained.  */
+      t.cpu_arch = abi_default_cpu_arch (t.abi);
+      warning (0, "%s CPU architecture (%qs) does not support %qs ABI, "
+	       "falling back to %<-m" OPTSTR_ARCH "=%s%>",
+	       (t.cpu_arch == CPU_NATIVE ? "your native" : "default"),
+	       arch_str (&t), abi_str (t.abi), arch_str (&t));
 
-      /* Try inferring int isa from int abi.  */
-      if (!LARCH_OPT_ABSENT (*abi_int))
-	switch (*abi_int)
-	  {
-	  case ABI_LP64:
-	    *isa_int = ISA_LA64;
-	    break;
-
-	  default:
-	    gcc_unreachable ();
-	  }
-
-      /* Try inferring int ISA from "-march" option.  */
-      else if (!cpu_arch_was_absent)
-	*isa_int
-	  = loongarch_cpu_default_config[*cpu_arch].isa_int;
-
-      /* If "-march" wasn't present, set *isa_int to configure-time
-	 default.  */
-      else if (DEFAULT_ISA_INT != M_OPTION_NOT_SEEN)
-	*isa_int = DEFAULT_ISA_INT;
-
-      /* If there's not a configure-time default for integer ISA,
-       * infer it from the configure-time default of "-march".  */
-      else
-	*isa_int = loongarch_cpu_default_config[*cpu_arch].isa_int;
+      constrained.arch = 1;
+      goto config_target_isa;
     }
-
-  /* 4.  Compute integer ABI.  */
-  if (LARCH_OPT_ABSENT (*abi_int))
+  else if (!constrained.abi_base)
     {
-      if (int_isa_was_absent && cpu_arch_was_absent
-	  && DEFAULT_ABI_INT != M_OPTION_NOT_SEEN)
-	  /* Fall back to configure-time default, if there is one.  */
-	  *abi_int = DEFAULT_ABI_INT;
-
-      else
-	/* Try inferring int ABI from int ISA.  */
-	switch (*isa_int)
-	  {
-	  case ISA_LA64:
-	    *abi_int = ABI_LP64;
-	    break;
-
-	  default:
-	    gcc_unreachable ();
-	  }
+      /* If -march is given while -mabi is not,
+	 try selecting another base ABI type.  */
+      abi_tmp.base = isa_default_abi (&isa_tmp).base;
     }
+  else
+    goto fatal;
 
-  /* 5.  Check integer ABI-ISA for conflicts.  */
-  switch (*isa_int)
+  if (isa_fpu_compat_p (&isa_tmp, isa_min)); /* OK */
+  else if (!constrained.fpu)
+    isa_tmp.fpu = isa_min -> fpu;
+  else if (!constrained.abi_base)
+      /* If -march is compatible with the default ABI
+	 while -mfpu is not.  */
+    abi_tmp.base = isa_default_abi (&isa_tmp).base;
+  else
+    goto fatal;
+
+  if (0)
+fatal:
+    fatal_error (UNKNOWN_LOCATION,
+		 "unable to implement ABI %qs with instruction set %qs",
+		 abi_str (t.abi), isa_str (&(t.isa), '/'));
+
+
+  /* Using the fallback ABI.  */
+  if (abi_tmp.base != t.abi.base || abi_tmp.ext != t.abi.ext)
     {
-    case ISA_LA64:
-      if (*abi_int != ABI_LP64) goto error_int_abi;
-      break;
-
-    default:
-      error_int_abi:
-      error ("%qs ABI is incompatible with %qs ISA",
-	     loongarch_abi_int_strings[*abi_int],
-	     loongarch_isa_int_strings[*isa_int]);
-    }
-
-  /* 6.  Compute floating-point ISA.  */
-  int float_isa_was_absent = 0;
-  if (LARCH_OPT_ABSENT (*isa_float))
-    {
-      float_isa_was_absent = 1;
-
-      /* Try inferring fp isa from fp abi.  */
-      if (!LARCH_OPT_ABSENT (*abi_float))
-	switch (*abi_float)
-	  {
-	  case ABI_SOFT_FLOAT:
-	    *isa_float = ISA_SOFT_FLOAT;
-	    break;
-
-	  case ABI_SINGLE_FLOAT:
-	    *isa_float = ISA_SINGLE_FLOAT;
-	    break;
-
-	  case ABI_DOUBLE_FLOAT:
-	    *isa_float = ISA_DOUBLE_FLOAT;
-	    break;
-
-	  default:
-	    gcc_unreachable ();
-	  }
-
-      /* Try inferring fp ISA from "-march" option.  */
-      else if (!cpu_arch_was_absent)
-	*isa_float = loongarch_cpu_default_config[*cpu_arch].isa_float;
-
-      /* If "-march" were't present, set *isa_float to config-time default.  */
-      else if (DEFAULT_ISA_FLOAT != M_OPTION_NOT_SEEN)
-	*isa_float = DEFAULT_ISA_FLOAT;
-
-      /* If there's not a configure-time default for floating-point ISA,
-       * infer it from the configure-time default of "-march".  */
-      else
-	*isa_float = loongarch_cpu_default_config[*cpu_arch].isa_float;
-    }
-
-  /* 7.  Compute floating-point ABI.  */
-  if (LARCH_OPT_ABSENT (*abi_float))
-    {
-      if (float_isa_was_absent && cpu_arch_was_absent
-	  && DEFAULT_ABI_FLOAT != M_OPTION_NOT_SEEN)
-	  /* Fall back to configure-time default, if there is one.  */
-	  *abi_float = DEFAULT_ABI_FLOAT;
-
-      else
-	/* Try inferring fp abi from fp isa.  */
-	switch (*isa_float)
-	  {
-	  case ISA_SOFT_FLOAT:
-	    *abi_float = ABI_SOFT_FLOAT;
-	    break;
-
-	  case ISA_SINGLE_FLOAT:
-	    *abi_float = ABI_SINGLE_FLOAT;
-	    break;
-
-	  case ISA_DOUBLE_FLOAT:
-	    *abi_float = ABI_DOUBLE_FLOAT;
-	    break;
-
-	  default:
-	    gcc_unreachable ();
-	  }
-    }
-  /* 8.  Check floating-point ABI-ISA for conflicts.  */
-  else if (!float_isa_was_absent)
-    {
-      switch (*isa_float)
+      /* This flag is only set in the GCC driver.  */
+      if (follow_multilib_list)
 	{
-	case ISA_SOFT_FLOAT:
-	  if (*abi_float != ABI_SOFT_FLOAT) goto error_float_abi;
-	  break;
 
-	case ISA_SINGLE_FLOAT:
-	  if (*abi_float != ABI_SINGLE_FLOAT) goto error_float_abi;
-	  break;
+	  /* Continue falling back until we find a feasible ABI type
+	     enabled by TM_MULTILIB_LIST.  */
+	  if (!is_multilib_enabled (abi_tmp))
+	    {
+	      for (unsigned int i = 0; i < ABI_COUNT; i++)
+		{
+		  if (is_multilib_enabled (abi_priority_list[i])
+		      && abi_compat_p (&isa_tmp, abi_priority_list[i]))
+		    {
+		      abi_tmp = abi_priority_list[i];
 
-	case ISA_DOUBLE_FLOAT:
-	  if (*abi_float != ABI_DOUBLE_FLOAT) goto error_float_abi;
-	  break;
+		      warning (0, "ABI %qs cannot be implemented due to "
+			       "limited instruction set %qs, "
+			       "falling back to %qs", abi_str (t.abi),
+			       isa_str (&(t.isa), '/'), abi_str (abi_tmp));
 
-	default:
-	  error_float_abi:
-	  error ("%<%s-float%> ABI is incompatible with %qs fpu",
-		 loongarch_abi_float_strings[*abi_float],
-		 loongarch_isa_float_strings[*isa_float]);
+		      goto fallback;
+		    }
+		}
+
+	      /* Otherwise, keep using abi_tmp with a warning.  */
+#ifdef __DISABLE_MULTILIB
+	      warning (0, "instruction set %qs cannot implement "
+		       "default ABI %qs, falling back to %qs",
+		       isa_str (&(t.isa), '/'), abi_str (t.abi),
+		       abi_str (abi_tmp));
+#else
+	      warning (0, "no multilib-enabled ABI (%qs) can be implemented "
+		       "with instruction set %qs, falling back to %qs",
+		       multilib_enabled_abi_list (),
+		       isa_str (&(t.isa), '/'), abi_str (abi_tmp));
+#endif
+	    }
+	}
+
+fallback:
+      t.abi = abi_tmp;
+    }
+  else if (follow_multilib_list)
+    {
+      if (!is_multilib_enabled (t.abi))
+	{
+	  inform (UNKNOWN_LOCATION,
+		  "ABI %qs is not enabled at configure-time, "
+		  "the linker might report an error", abi_str (t.abi));
+
+	  inform (UNKNOWN_LOCATION, "ABI with startfiles: %s",
+		  multilib_enabled_abi_list ());
 	}
     }
+
+
+  /* 5.  Target code model */
+  t.cmodel = constrained.cmodel ? opt_cmodel : CMODEL_NORMAL;
+
+  /* cleanup and return */
+  obstack_free (&msg_obstack, NULL);
+  *target = t;
+}
+
+/* Returns the default ABI for the given instruction set.  */
+static inline struct loongarch_abi
+isa_default_abi (const struct loongarch_isa *isa)
+{
+  struct loongarch_abi abi;
+
+  switch (isa -> fpu)
+    {
+      case ISA_EXT_FPU64:
+	if (isa -> base == ISA_BASE_LA64V100)
+	  abi.base = ABI_BASE_LP64D;
+	break;
+
+      case ISA_EXT_FPU32:
+	if (isa -> base == ISA_BASE_LA64V100)
+	  abi.base = ABI_BASE_LP64F;
+	break;
+
+      case ISA_EXT_NOFPU:
+	if (isa -> base == ISA_BASE_LA64V100)
+	  abi.base = ABI_BASE_LP64S;
+	break;
+
+      default:
+	gcc_unreachable ();
+    }
+
+  abi.ext = ABI_EXT_BASE;
+  return abi;
+}
+
+/* Check if set2 is a subset of set1.  */
+static inline int
+isa_base_compat_p (const struct loongarch_isa *set1,
+		   const struct loongarch_isa *set2)
+{
+  switch (set2 -> base)
+    {
+      case ISA_BASE_LA64V100:
+	return (set1 -> base == ISA_BASE_LA64V100);
+
+      default:
+	gcc_unreachable ();
+    }
+}
+
+static inline int
+isa_fpu_compat_p (const struct loongarch_isa *set1,
+		  const struct loongarch_isa *set2)
+{
+  switch (set2 -> fpu)
+    {
+      case ISA_EXT_FPU64:
+	return set1 -> fpu == ISA_EXT_FPU64;
+
+      case ISA_EXT_FPU32:
+	return set1 -> fpu == ISA_EXT_FPU32 || set1 -> fpu == ISA_EXT_FPU64;
+
+      case ISA_EXT_NOFPU:
+	return 1;
+
+      default:
+	gcc_unreachable ();
+    }
+
+}
+
+static inline int
+abi_compat_p (const struct loongarch_isa *isa, struct loongarch_abi abi)
+{
+  int compatible = 1;
+  const struct loongarch_isa *isa2 = &(isa_required (abi));
+
+  /* Append conditionals for new ISA components below.  */
+  compatible = compatible && isa_base_compat_p (isa, isa2);
+  compatible = compatible && isa_fpu_compat_p (isa, isa2);
+  return compatible;
+}
+
+/* The behavior of this function should be consistent
+   with config.gcc.  */
+static inline int
+abi_default_cpu_arch (struct loongarch_abi abi)
+{
+  switch (abi.base)
+    {
+      case ABI_BASE_LP64D:
+      case ABI_BASE_LP64F:
+      case ABI_BASE_LP64S:
+	if (abi.ext == ABI_EXT_BASE)
+	  return CPU_LOONGARCH64;
+    }
+  gcc_unreachable ();
+}
+
+static const char*
+abi_str (struct loongarch_abi abi)
+{
+  /* "/base" can be omitted */
+  if (abi.ext == ABI_EXT_BASE)
+    return (const char*)
+      obstack_copy0 (&msg_obstack, loongarch_abi_base_strings[abi.base],
+		     strlen (loongarch_abi_base_strings[abi.base]));
+  else
+    {
+      APPEND_STRING (loongarch_abi_base_strings[abi.base])
+      APPEND1 ('/')
+      APPEND_STRING (loongarch_abi_ext_strings[abi.ext])
+      APPEND1 ('\0')
+
+      return XOBFINISH (&msg_obstack, const char *);
+    }
+}
+
+static const char*
+isa_str (const struct loongarch_isa *isa, char separator)
+{
+  APPEND_STRING (loongarch_isa_base_strings[isa -> base])
+  APPEND1 (separator)
+
+  if (isa -> fpu == ISA_EXT_NOFPU)
+    {
+      APPEND_STRING ("no" OPTSTR_ISA_EXT_FPU)
+    }
+  else
+    {
+      APPEND_STRING (OPTSTR_ISA_EXT_FPU)
+      APPEND_STRING (loongarch_isa_ext_strings[isa -> fpu])
+    }
+  APPEND1 ('\0')
+
+  /* Add more here.  */
+
+  return XOBFINISH (&msg_obstack, const char *);
+}
+
+static const char*
+arch_str (const struct loongarch_target *target)
+{
+  if (target -> cpu_arch == CPU_NATIVE)
+    {
+    if (target -> cpu_native == CPU_NATIVE)
+      {
+	/* Describe a native CPU with unknown PRID.  */
+	const char* isa_string = isa_str (&(target -> isa), ',');
+	APPEND_STRING ("PRID: 0x")
+	APPEND_STRING (get_native_prid_str ())
+	APPEND_STRING (", ISA features: ")
+	APPEND_STRING (isa_string)
+	APPEND1 ('\0')
+      }
+    else
+      APPEND_STRING (loongarch_cpu_strings[target -> cpu_native]);
+    }
+  else
+    APPEND_STRING (loongarch_cpu_strings[target -> cpu_arch]);
+
+  APPEND1 ('\0')
+  return XOBFINISH (&msg_obstack, const char *);
+}
+
+static const char*
+multilib_enabled_abi_list ()
+{
+  int enabled_abi_idx[MULTILIB_LIST_LEN] = { 0 };
+  const char* enabled_abi_str[MULTILIB_LIST_LEN] = { NULL };
+  unsigned int j = 0;
+
+  for (unsigned int i = 0; i < ABI_COUNT && j < MULTILIB_LIST_LEN; i++)
+    {
+      if (enabled_abi_types[abi_priority_list[i].base]
+	  [abi_priority_list[i].ext])
+	{
+	  enabled_abi_idx[j++] = i;
+	}
+    }
+
+  for (unsigned int k = 0; k < j; k++)
+    {
+      enabled_abi_str[k] = abi_str (abi_priority_list[enabled_abi_idx[k]]);
+    }
+
+  for (unsigned int k = 0; k < j - 1; k++)
+    {
+      APPEND_STRING (enabled_abi_str[k])
+      APPEND1 (',')
+      APPEND1 (' ')
+    }
+  APPEND_STRING (enabled_abi_str[j - 1])
+  APPEND1 ('\0')
+
+  return XOBFINISH (&msg_obstack, const char *);
 }

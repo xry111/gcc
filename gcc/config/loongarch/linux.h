@@ -1,4 +1,4 @@
-/* Definitions for LoongArch running Linux-based GNU systems with ELF format.
+/* Definitions for Linux-based systems with libraries in ELF format.
    Copyright (C) 2021 Free Software Foundation, Inc.
 
 This file is part of GCC.
@@ -21,37 +21,28 @@ along with GCC; see the file COPYING3.  If not see
  * This ensures that a compiler configured with --disable-multilib
  * can work in an multilib environment.  */
 
-#if defined (__DISABLE_MULTILIB) && defined (__DISABLE_MULTIARCH)
+#if defined(__DISABLE_MULTILIB) && defined(__DISABLE_MULTIARCH)
 
-  /* Integer ABI  */
-  #if DEFAULT_ABI_INT == ABI_LP64
-    #define INT_ABI_SUFFIX "lib64"
-  #endif
-
-  /* Floating-Point ABI  */
-  #if DEFAULT_ABI_FLOAT == ABI_SOFT_FLOAT
-    #define FLOAT_ABI_SUFFIX "soft/"
-  #elif DEFAULT_ABI_FLOAT == ABI_SINGLE_FLOAT
-    #define FLOAT_ABI_SUFFIX "single/"
+  #if DEFAULT_ABI_INT == ABI_BASE_LP64D
+    #define ABI_LIBDIR "lib64"
+  #elif DEFAULT_ABI_INT == ABI_BASE_LP64F
+    #define ABI_LIBDIR "lib64/f32"
+  #elif DEFAULT_ABI_INT == ABI_BASE_LP64S
+    #define ABI_LIBDIR "lib64/sf"
   #endif
 
 #endif
 
-#ifndef INT_ABI_SUFFIX
-#define INT_ABI_SUFFIX "lib"
+#ifndef ABI_LIBDIR
+#define ABI_LIBDIR "lib"
 #endif
 
-#ifndef FLOAT_ABI_SUFFIX
-#define FLOAT_ABI_SUFFIX ""
-#endif
-
-#define STANDARD_STARTFILE_PREFIX_1 "/" INT_ABI_SUFFIX "/" FLOAT_ABI_SUFFIX
-#define STANDARD_STARTFILE_PREFIX_2 "/usr/" INT_ABI_SUFFIX "/" FLOAT_ABI_SUFFIX
+#define STANDARD_STARTFILE_PREFIX_1 "/" ABI_LIBDIR "/"
+#define STANDARD_STARTFILE_PREFIX_2 "/usr/" ABI_LIBDIR "/"
 
 
 /* Define this to be nonzero if static stack checking is supported.  */
 #define STACK_CHECK_STATIC_BUILTIN 1
 
-/* FIXME*/
 /* The default value isn't sufficient in 64-bit mode.  */
 #define STACK_CHECK_PROTECT (TARGET_64BIT ? 16 * 1024 : 12 * 1024)
