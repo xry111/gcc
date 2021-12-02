@@ -108,9 +108,9 @@ fill_native_cpu_config (int p_arch_native, int p_tune_native)
       default:
 	if (p_arch_native)
 	  fatal_error (UNKNOWN_LOCATION,
-		       "Unknown base architecture %<0x%x%>, "
-		       "%<-m" OPTSTR_ARCH "=" STR_CPU_NATIVE "%> failed",
-		       (unsigned int) (cpucfg_cache[1] & 0x3));
+		       "unknown base architecture %<0x%x%>, %qs failed",
+		       (unsigned int) (cpucfg_cache[1] & 0x3),
+		       "-m" OPTSTR_ARCH "=" STR_CPU_NATIVE);
     }
 
   /* Fill: loongarch_cpu_default_isa[CPU_NATIVE].fpu
@@ -135,9 +135,9 @@ fill_native_cpu_config (int p_arch_native, int p_tune_native)
       default:
 	if (p_arch_native)
 	  fatal_error (UNKNOWN_LOCATION,
-		       "Unknown FPU type %<0x%x%>, "
-		       "%<-m" OPTSTR_ARCH "=" STR_CPU_NATIVE "%> failed",
-		       cpucfg_cache[2] & 0x7);
+		       "unknown FPU type %<0x%x%>, %qs failed",
+		       (unsigned int) (cpucfg_cache[2] & 0x7),
+		       "-m" OPTSTR_ARCH "=" STR_CPU_NATIVE);
     }
 
   /* Fill: loongarch_cpu_cache[CPU_NATIVE]
@@ -186,7 +186,7 @@ fill_native_cpu_config (int p_arch_native, int p_tune_native)
       /* Unknown PRID.  This is generally harmless as long as
 	 the properties above can be obtained via "cpucfg".  */
       if (p_tune_native)
-	inform (UNKNOWN_LOCATION, "Unknown processor ID %<0x%x%>, "
+	inform (UNKNOWN_LOCATION, "unknown processor ID %<0x%x%>, "
 		"some tuning parameters will fall back to default",
 		cpucfg_cache[0]);
       break;

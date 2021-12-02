@@ -21,6 +21,10 @@ along with GCC; see the file COPYING3.  If not see
 #ifndef LOONGARCH_TUNE_H
 #define LOONGARCH_TUNE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* RTX costs of various operations on the different architectures.  */
 struct loongarch_rtx_cost_data
 {
@@ -37,46 +41,23 @@ struct loongarch_rtx_cost_data
   unsigned short memory_latency;
 };
 
-/* Definition stolen from rtl.h */
+/* Default RTX cost initializer.  */
 #define COSTS_N_INSNS(N) ((N) * 4)
-
-/* Default costs.  If these are used for a processor we should look
-   up the actual costs.  */
-#define DEFAULT_COSTS COSTS_N_INSNS (6),  /* fp_add */       \
-		      COSTS_N_INSNS (7),  /* fp_mult_sf */   \
-		      COSTS_N_INSNS (8),  /* fp_mult_df */   \
-		      COSTS_N_INSNS (23), /* fp_div_sf */    \
-		      COSTS_N_INSNS (36), /* fp_div_df */    \
-		      COSTS_N_INSNS (10), /* int_mult_si */  \
-		      COSTS_N_INSNS (10), /* int_mult_di */  \
-		      COSTS_N_INSNS (69), /* int_div_si */   \
-		      COSTS_N_INSNS (69), /* int_div_di */   \
-		      2, /* branch_cost */  \
-		      4  /* memory_latency */
-
-/* Floating-point costs for processors without an FPU.  Just assume that
-   all floating-point libcalls are very expensive.  */
-#define SOFT_FP_COSTS COSTS_N_INSNS (256), /* fp_add */       \
-		      COSTS_N_INSNS (256), /* fp_mult_sf */   \
-		      COSTS_N_INSNS (256), /* fp_mult_df */   \
-		      COSTS_N_INSNS (256), /* fp_div_sf */    \
-		      COSTS_N_INSNS (256)  /* fp_div_df */
+#define DEFAULT_COSTS \
+    .fp_add          = COSTS_N_INSNS (6),   \
+    .fp_mult_sf      = COSTS_N_INSNS (7),   \
+    .fp_mult_df      = COSTS_N_INSNS (8),   \
+    .fp_div_sf       = COSTS_N_INSNS (23),  \
+    .fp_div_df       = COSTS_N_INSNS (36),  \
+    .int_mult_si     = COSTS_N_INSNS (10),  \
+    .int_mult_di     = COSTS_N_INSNS (10),  \
+    .int_div_si      = COSTS_N_INSNS (69),  \
+    .int_div_di      = COSTS_N_INSNS (69),  \
+    .branch_cost     = 2,                   \
+    .memory_latency  = 4
 
 /* Costs to use when optimizing for size.  */
-static const struct loongarch_rtx_cost_data loongarch_rtx_cost_optimize_size = {
-    COSTS_N_INSNS (1),		    /* fp_add */
-    COSTS_N_INSNS (1),		    /* fp_mult_sf */
-    COSTS_N_INSNS (1),		    /* fp_mult_df */
-    COSTS_N_INSNS (1),		    /* fp_div_sf */
-    COSTS_N_INSNS (1),		    /* fp_div_df */
-    COSTS_N_INSNS (1),		    /* int_mult_si */
-    COSTS_N_INSNS (1),		    /* int_mult_di */
-    COSTS_N_INSNS (1),		    /* int_div_si */
-    COSTS_N_INSNS (1),		    /* int_div_di */
-    2,				    /* branch_cost */
-    4				    /* memory_latency */
-};
-
+extern const struct loongarch_rtx_cost_data loongarch_rtx_cost_optimize_size;
 
 /* Cache size record of known processor models.  */
 struct loongarch_cache {
@@ -85,4 +66,7 @@ struct loongarch_cache {
     int l2d_size;       /* kiB */
 };
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* LOONGARCH_TUNE_H */

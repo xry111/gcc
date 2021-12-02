@@ -48,6 +48,10 @@ along with GCC; see the file COPYING3.  If not see
 
 #include "loongarch-tune.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* enum isa_base */
 extern const char* loongarch_isa_base_strings[];
 #define ISA_BASE_LA64V100     0
@@ -141,4 +145,7 @@ extern int loongarch_cpu_multipass_dfa_lookahead[];
 extern struct loongarch_cache loongarch_cpu_cache[];
 extern struct loongarch_rtx_cost_data loongarch_cpu_rtx_cost_data[];
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* LOONGARCH_DEF_H */

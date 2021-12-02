@@ -52,7 +52,7 @@ static const int tm_multilib_list[] = { TM_MULTILIB_LIST };
 static int enabled_abi_types[N_ABI_BASE_TYPES][N_ABI_EXT_TYPES] = { 0 };
 
 #define isa_required(ABI) (abi_minimal_isa[(ABI).base][(ABI).ext])
-extern const struct loongarch_isa
+extern "C" const struct loongarch_isa
 abi_minimal_isa[N_ABI_BASE_TYPES][N_ABI_EXT_TYPES];
 
 static inline int
@@ -186,18 +186,20 @@ loongarch_config_target (struct loongarch_target *target,
 
       /* The target ISA is not ready yet, but (isa_required (t.abi)
 	 + forced fpu) is enough for computing the forced base ABI.  */
-      struct loongarch_isa force_isa = isa_required (t.abi);
+      struct loongarch_isa default_isa = isa_required (t.abi);
+      struct loongarch_isa force_isa = default_isa;
       struct loongarch_abi force_abi = t.abi;
       force_isa.fpu = opt_fpu;
       force_abi.base = isa_default_abi (&force_isa).base;
 
-      if (isa_fpu_compat_p (&(t.isa), &(force_isa)));
-	/* keep quiet */
+      if (isa_fpu_compat_p (&default_isa, &force_isa));
+	/* Keep quiet if -m*-float does not promote the FP ABI.  */
       else if (constrained.abi_base && (t.abi.base != force_abi.base))
 	inform (UNKNOWN_LOCATION,
-		"%<-m%s%> overrides %<-m" OPTSTR_ABI_BASE "=%s%>",
+		"%<-m%s%> overrides %<-m%s=%s%>, promoting ABI to %qs",
 		loongarch_switch_strings[on_switch],
-		loongarch_abi_base_strings[t.abi.base]);
+		OPTSTR_ABI_BASE, loongarch_abi_base_strings[t.abi.base],
+		abi_str (force_abi));
 
       t.abi.base = force_abi.base;
     }
@@ -231,13 +233,13 @@ loongarch_config_target (struct loongarch_target *target,
 #else
   if (t.cpu_arch == CPU_NATIVE)
     fatal_error (UNKNOWN_LOCATION,
-		 "%<-m" OPTSTR_ARCH "=" STR_CPU_NATIVE "%> "
-		 "does not work on a cross compiler");
+		 "%qs does not work on a cross compiler",
+		 "-m" OPTSTR_ARCH "=" STR_CPU_NATIVE);
 
   else if (t.cpu_tune == CPU_NATIVE)
     fatal_error (UNKNOWN_LOCATION,
-		 "%<-m" OPTSTR_TUNE "=" STR_CPU_NATIVE "%> "
-		 "does not work on a cross compiler");
+		 "%qs does not work on a cross compiler",
+		 "-m" OPTSTR_TUNE "=" STR_CPU_NATIVE);
 #endif
 
   /* 3.  Target ISA */
@@ -267,7 +269,7 @@ config_target_isa:
   struct loongarch_isa isa_tmp;
 
   abi_tmp = t.abi;
-  isa_min = &(isa_required (abi_tmp));
+  isa_min = &isa_required (abi_tmp);
   isa_tmp = t.isa;
 
   if (isa_base_compat_p (&isa_tmp, isa_min)); /* OK */
@@ -275,12 +277,20 @@ config_target_isa:
     {
       /* Base architecture can only be implied by -march,
 	 so we adjust that first if it is not constrained.  */
-      t.cpu_arch = abi_default_cpu_arch (t.abi);
-      warning (0, "%s CPU architecture (%qs) does not support %qs ABI, "
-	       "falling back to %<-m" OPTSTR_ARCH "=%s%>",
-	       (t.cpu_arch == CPU_NATIVE ? "your native" : "default"),
-	       arch_str (&t), abi_str (t.abi), arch_str (&t));
+      int fallback_arch = abi_default_cpu_arch (t.abi);
 
+      if (t.cpu_arch == CPU_NATIVE)
+	warning (0, "your native CPU architecture (%qs) "
+		 "does not support %qs ABI, falling back to %<-m%s=%s%>",
+		 arch_str (&t), abi_str (t.abi), OPTSTR_ARCH,
+		 loongarch_cpu_strings[fallback_arch]);
+      else
+	warning (0, "default CPU architecture (%qs) "
+		 "does not support %qs ABI, falling back to %<-m%s=%s%>",
+		 arch_str (&t), abi_str (t.abi), OPTSTR_ARCH,
+		 loongarch_cpu_strings[fallback_arch]);
+
+      t.cpu_arch = fallback_arch;
       constrained.arch = 1;
       goto config_target_isa;
     }
@@ -295,7 +305,7 @@ config_target_isa:
 
   if (isa_fpu_compat_p (&isa_tmp, isa_min)); /* OK */
   else if (!constrained.fpu)
-    isa_tmp.fpu = isa_min -> fpu;
+    isa_tmp.fpu = isa_min->fpu;
   else if (!constrained.abi_base)
       /* If -march is compatible with the default ABI
 	 while -mfpu is not.  */
@@ -307,7 +317,7 @@ config_target_isa:
 fatal:
     fatal_error (UNKNOWN_LOCATION,
 		 "unable to implement ABI %qs with instruction set %qs",
-		 abi_str (t.abi), isa_str (&(t.isa), '/'));
+		 abi_str (t.abi), isa_str (&t.isa, '/'));
 
 
   /* Using the fallback ABI.  */
@@ -331,7 +341,7 @@ fatal:
 		      warning (0, "ABI %qs cannot be implemented due to "
 			       "limited instruction set %qs, "
 			       "falling back to %qs", abi_str (t.abi),
-			       isa_str (&(t.isa), '/'), abi_str (abi_tmp));
+			       isa_str (&t.isa, '/'), abi_str (abi_tmp));
 
 		      goto fallback;
 		    }
@@ -341,13 +351,13 @@ fatal:
 #ifdef __DISABLE_MULTILIB
 	      warning (0, "instruction set %qs cannot implement "
 		       "default ABI %qs, falling back to %qs",
-		       isa_str (&(t.isa), '/'), abi_str (t.abi),
+		       isa_str (&t.isa, '/'), abi_str (t.abi),
 		       abi_str (abi_tmp));
 #else
 	      warning (0, "no multilib-enabled ABI (%qs) can be implemented "
 		       "with instruction set %qs, falling back to %qs",
 		       multilib_enabled_abi_list (),
-		       isa_str (&(t.isa), '/'), abi_str (abi_tmp));
+		       isa_str (&t.isa, '/'), abi_str (abi_tmp));
 #endif
 	    }
 	}
@@ -383,20 +393,20 @@ isa_default_abi (const struct loongarch_isa *isa)
 {
   struct loongarch_abi abi;
 
-  switch (isa -> fpu)
+  switch (isa->fpu)
     {
       case ISA_EXT_FPU64:
-	if (isa -> base == ISA_BASE_LA64V100)
+	if (isa->base == ISA_BASE_LA64V100)
 	  abi.base = ABI_BASE_LP64D;
 	break;
 
       case ISA_EXT_FPU32:
-	if (isa -> base == ISA_BASE_LA64V100)
+	if (isa->base == ISA_BASE_LA64V100)
 	  abi.base = ABI_BASE_LP64F;
 	break;
 
       case ISA_EXT_NOFPU:
-	if (isa -> base == ISA_BASE_LA64V100)
+	if (isa->base == ISA_BASE_LA64V100)
 	  abi.base = ABI_BASE_LP64S;
 	break;
 
@@ -413,10 +423,10 @@ static inline int
 isa_base_compat_p (const struct loongarch_isa *set1,
 		   const struct loongarch_isa *set2)
 {
-  switch (set2 -> base)
+  switch (set2->base)
     {
       case ISA_BASE_LA64V100:
-	return (set1 -> base == ISA_BASE_LA64V100);
+	return (set1->base == ISA_BASE_LA64V100);
 
       default:
 	gcc_unreachable ();
@@ -427,13 +437,13 @@ static inline int
 isa_fpu_compat_p (const struct loongarch_isa *set1,
 		  const struct loongarch_isa *set2)
 {
-  switch (set2 -> fpu)
+  switch (set2->fpu)
     {
       case ISA_EXT_FPU64:
-	return set1 -> fpu == ISA_EXT_FPU64;
+	return set1->fpu == ISA_EXT_FPU64;
 
       case ISA_EXT_FPU32:
-	return set1 -> fpu == ISA_EXT_FPU32 || set1 -> fpu == ISA_EXT_FPU64;
+	return set1->fpu == ISA_EXT_FPU32 || set1->fpu == ISA_EXT_FPU64;
 
       case ISA_EXT_NOFPU:
 	return 1;
@@ -448,7 +458,7 @@ static inline int
 abi_compat_p (const struct loongarch_isa *isa, struct loongarch_abi abi)
 {
   int compatible = 1;
-  const struct loongarch_isa *isa2 = &(isa_required (abi));
+  const struct loongarch_isa *isa2 = &isa_required (abi);
 
   /* Append conditionals for new ISA components below.  */
   compatible = compatible && isa_base_compat_p (isa, isa2);
@@ -494,17 +504,17 @@ abi_str (struct loongarch_abi abi)
 static const char*
 isa_str (const struct loongarch_isa *isa, char separator)
 {
-  APPEND_STRING (loongarch_isa_base_strings[isa -> base])
+  APPEND_STRING (loongarch_isa_base_strings[isa->base])
   APPEND1 (separator)
 
-  if (isa -> fpu == ISA_EXT_NOFPU)
+  if (isa->fpu == ISA_EXT_NOFPU)
     {
       APPEND_STRING ("no" OPTSTR_ISA_EXT_FPU)
     }
   else
     {
       APPEND_STRING (OPTSTR_ISA_EXT_FPU)
-      APPEND_STRING (loongarch_isa_ext_strings[isa -> fpu])
+      APPEND_STRING (loongarch_isa_ext_strings[isa->fpu])
     }
   APPEND1 ('\0')
 
@@ -516,12 +526,12 @@ isa_str (const struct loongarch_isa *isa, char separator)
 static const char*
 arch_str (const struct loongarch_target *target)
 {
-  if (target -> cpu_arch == CPU_NATIVE)
+  if (target->cpu_arch == CPU_NATIVE)
     {
-    if (target -> cpu_native == CPU_NATIVE)
+    if (target->cpu_native == CPU_NATIVE)
       {
 	/* Describe a native CPU with unknown PRID.  */
-	const char* isa_string = isa_str (&(target -> isa), ',');
+	const char* isa_string = isa_str (&target->isa, ',');
 	APPEND_STRING ("PRID: 0x")
 	APPEND_STRING (get_native_prid_str ())
 	APPEND_STRING (", ISA features: ")
@@ -529,10 +539,10 @@ arch_str (const struct loongarch_target *target)
 	APPEND1 ('\0')
       }
     else
-      APPEND_STRING (loongarch_cpu_strings[target -> cpu_native]);
+      APPEND_STRING (loongarch_cpu_strings[target->cpu_native]);
     }
   else
-    APPEND_STRING (loongarch_cpu_strings[target -> cpu_arch]);
+    APPEND_STRING (loongarch_cpu_strings[target->cpu_arch]);
 
   APPEND1 ('\0')
   return XOBFINISH (&msg_obstack, const char *);

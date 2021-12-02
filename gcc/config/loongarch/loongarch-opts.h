@@ -28,13 +28,9 @@ extern struct loongarch_target la_target;
 /* Switch masks */
 extern const int loongarch_switch_mask[];
 
-#ifdef IN_LIBGCC2
 #include "loongarch-def.h"
-#else
-extern "C" {
-#include "loongarch-def.h"
-}
 
+#if !defined(IN_LIBGCC2) && !defined(IN_TARGET_LIBS) && !defined(IN_RTS)
 /* Handler for "-m" option combinations,
    shared by the driver and the compiler proper.  */
 void

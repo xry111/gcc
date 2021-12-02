@@ -73,6 +73,22 @@ loongarch_cpu_rtx_cost_data[N_TUNE_TYPES] = {
   },
 };
 
+/* RTX costs to use when optimizing for size.  */
+extern const struct loongarch_rtx_cost_data
+loongarch_rtx_cost_optimize_size = {
+    .fp_add           = 4,
+    .fp_mult_sf       = 4,
+    .fp_mult_df       = 4,
+    .fp_div_sf        = 4,
+    .fp_div_df        = 4,
+    .int_mult_si      = 4,
+    .int_mult_di      = 4,
+    .int_div_si       = 4,
+    .int_div_di       = 4,
+    .branch_cost      = 2,
+    .memory_latency   = 4,
+};
+
 int
 loongarch_cpu_issue_rate[N_TUNE_TYPES] = {
   [CPU_NATIVE]	      = 4,
