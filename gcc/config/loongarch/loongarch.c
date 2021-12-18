@@ -4884,10 +4884,10 @@ loongarch_file_start (void)
   default_file_start ();
 }
 
-/* Implement TARGET_ASM_CODE_END.  */
+/* Implement TARGET_ASM_FILE_END.  */
 
 static void
-loongarch_code_end (void)
+loongarch_file_end (void)
 {
   if (NEED_INDICATE_EXEC_STACK)
     /* Add .note.GNU-stack.  */
@@ -6318,8 +6318,8 @@ loongarch_starting_frame_offset (void)
 #define TARGET_ASM_FILE_START loongarch_file_start
 #undef TARGET_ASM_FILE_START_FILE_DIRECTIVE
 #define TARGET_ASM_FILE_START_FILE_DIRECTIVE true
-#undef TARGET_ASM_CODE_END
-#define TARGET_ASM_CODE_END loongarch_code_end
+#undef TARGET_ASM_FILE_END
+#define TARGET_ASM_FILE_END loongarch_file_end
 
 #undef TARGET_EXPAND_BUILTIN_VA_START
 #define TARGET_EXPAND_BUILTIN_VA_START loongarch_va_start
