@@ -1239,3 +1239,6 @@ struct GTY (()) machine_function
   (TARGET_HARD_FLOAT_ABI ? (TARGET_DOUBLE_FLOAT_ABI ? 8 : 4) : 0)
 
 #define FUNCTION_VALUE_REGNO_P(N) ((N) == GP_RETURN || (N) == FP_RETURN)
+
+#define TARGET_EXPLICIT_RELOCS \
+  (la_opt_explicit_relocs == EXPLICIT_RELOCS_ALWAYS)
