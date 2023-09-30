@@ -1923,6 +1923,22 @@ loongarch_symbolic_constant_p (rtx x, enum loongarch_symbol_type *symbol_type)
   gcc_unreachable ();
 }
 
+bool
+loongarch_explicit_relocs_p (enum loongarch_symbol_type type)
+{
+  if (la_opt_explicit_relocs != EXPLICIT_RELOCS_AUTO)
+    return la_opt_explicit_relocs == EXPLICIT_RELOCS_ALWAYS;
+
+  if (!in_lto_p
+      || flag_incremental_link
+      || HAVE_LTO_PLUGIN < 2
+      || (global_options_set.x_flag_use_linker_plugin
+	  && !global_options.x_flag_use_linker_plugin))
+    return false;
+
+  return type == SYMBOL_GOT_DISP;
+}
+
 /* Returns the number of instructions necessary to reference a symbol.  */
 
 static int
@@ -1938,7 +1954,7 @@ loongarch_symbol_insns (enum loongarch_symbol_type type, machine_mode mode)
     case SYMBOL_GOT_DISP:
       /* The constant will have to be loaded from the GOT before it
 	 is used in an address.  */
-      if (!TARGET_EXPLICIT_RELOCS && mode != MAX_MACHINE_MODE)
+      if (!loongarch_explicit_relocs_p (type) && mode != MAX_MACHINE_MODE)
 	return 0;
 
       return 3;
@@ -3050,12 +3066,9 @@ loongarch_split_symbol (rtx temp, rtx addr, machine_mode mode, rtx *low_out)
 {
   enum loongarch_symbol_type symbol_type;
 
-  /* If build with '-mno-explicit-relocs', don't split symbol.  */
-  if (!TARGET_EXPLICIT_RELOCS)
-    return false;
-
   if ((GET_CODE (addr) == HIGH && mode == MAX_MACHINE_MODE)
       || !loongarch_symbolic_constant_p (addr, &symbol_type)
+      || !loongarch_explicit_relocs_p (symbol_type)
       || loongarch_symbol_insns (symbol_type, mode) == 0
       || !loongarch_split_symbol_type (symbol_type))
     return false;
@@ -4651,7 +4664,7 @@ loongarch_output_move (rtx dest, rtx src)
 	}
     }
 
-  if (!TARGET_EXPLICIT_RELOCS
+  if (!loongarch_explicit_relocs_p (loongarch_classify_symbol (src))
       && dest_code == REG && symbolic_operand (src, VOIDmode))
     {
       if (loongarch_classify_symbol (src) == SYMBOL_PCREL)
